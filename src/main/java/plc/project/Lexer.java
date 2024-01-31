@@ -51,16 +51,29 @@ public final class Lexer {
      * by {@link #lex()}
      */
     public Token lexToken() {
-        if (peek("[A-Za-z]")) {
+        if (peek("@?[A-Za-z_][A-Za-z0-9_-]*")) {
             return lexIdentifier();
         }
-        else if (peek("[0-9]")) {
-            return lexNumber();
+        else if (match("-?[1-9][0-9]*")) {
+            // Non-zero integer
+            return chars.emit(Token.Type.INTEGER);
         }
-        else if (peek("'")) {
+        else if (match("0")) {
+            // Zero
+            return chars.emit(Token.Type.INTEGER);
+        }
+        else if (match("-?[1-9][0-9]*\\.[0-9]+")) {
+            // Decimal
+            return chars.emit(Token.Type.DECIMAL);
+        }
+        else if (match("-?0\\.[0-9]+")) {
+            // Decimal starting with zero
+            return chars.emit(Token.Type.DECIMAL);
+        }
+        else if (peek("'[^\\\\\\n\\r]'")) {
             return lexCharacter();
         }
-        else if (peek("\"")) {
+        else if (peek("\"([^\\\\\"\\n\\r]|\\\\[bnrt'\"\\\\.])*\"")) {
             return lexString();
         }
         else if (peek("[^\\s]")) {
@@ -69,7 +82,6 @@ public final class Lexer {
         else {
             throw new UnsupportedOperationException("Invalid token at index " + chars.index);
         }
-
     }
 
     public Token lexIdentifier() {
@@ -83,8 +95,8 @@ public final class Lexer {
     }
 
     public Token lexNumber() {
-        if (match("-?[1-9][0-9]*")) {
-            // Non-zero integer
+        if (match("-?[1-9][0-9]+")) {
+            // Non-zero integer with multiple digits
             return chars.emit(Token.Type.INTEGER);
         }
         else if (match("0")) {
@@ -106,7 +118,19 @@ public final class Lexer {
     }
 
     public Token lexCharacter() {
-        if (match("'[^\\\\\\n\\r']'")) {
+        if (match("'.'")) {
+            // Single character
+            return chars.emit(Token.Type.CHARACTER);
+        }
+        else if (peek("'\\\\n'")) {
+            // Newline escape
+            return chars.emit(Token.Type.CHARACTER);
+        }
+        else if (match("'[^\\\\\\n\\r]'")) {
+            return chars.emit(Token.Type.CHARACTER);
+        }
+        else if (match("'\\\\[nrt]'")) {
+            lexEscape(); // Handle escape sequences like '\n', '\r', '\t'
             return chars.emit(Token.Type.CHARACTER);
         }
         else {
@@ -115,7 +139,7 @@ public final class Lexer {
     }
 
     public Token lexString() {
-        if (match("\"([^\\\\\"]|\\\\[bnrt'\"\\\\])*\"")) {
+        if (match("\"([^\\\\\"\\n\\r]|\\\\[bnrt'\"\\\\.])*\"")) {
             return chars.emit(Token.Type.STRING);
         }
         else {
@@ -126,7 +150,8 @@ public final class Lexer {
     public void lexEscape() {
         if (match("\\\\[bnrt'\"\\\\]")) {
             // Valid escape sequence
-        } else {
+        }
+        else {
             throw new UnsupportedOperationException("Invalid escape sequence at index " + chars.index);
         }
     }
@@ -153,7 +178,7 @@ public final class Lexer {
             }
         }
         return true;
-        //throw new UnsupportedOperationException(); //TODO (in Lecture)
+        //throw new UnsupportedOperationException();
     }
 
     /**
@@ -169,7 +194,7 @@ public final class Lexer {
             }
         }
         return peek;
-        //throw new UnsupportedOperationException(); //TODO (in Lecture)
+        //throw new UnsupportedOperationException();
     }
 
     /**
