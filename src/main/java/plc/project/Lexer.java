@@ -31,8 +31,13 @@ public final class Lexer {
 
         //throw new UnsupportedOperationException(); Comment this out?
         List<Token> tokens = new ArrayList<>();
-        while (peek()) {
-            lexToken();
+        while (chars.has(0)) {
+            char current = chars.get(0);
+            if (Character.isWhitespace(current)) {
+                chars.advance(); // Skip whitespace
+            } else {
+                tokens.add(lexToken());
+            }
         }
         return tokens;
     }
@@ -62,7 +67,7 @@ public final class Lexer {
             return lexOperator();
         }
         else {
-            throw new UnsupportedOperationException("Invalid token at index " + chars.index); //TODO
+            throw new UnsupportedOperationException("Invalid token at index " + chars.index);
         }
 
     }
@@ -206,7 +211,8 @@ public final class Lexer {
             int start = index - length;
             skip();
             return new Token(type, input.substring(start, index), start);
-        }
+      }
+
 
     }
 
