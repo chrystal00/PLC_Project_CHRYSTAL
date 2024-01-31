@@ -1,5 +1,6 @@
 package plc.project;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -27,7 +28,13 @@ public final class Lexer {
      * whitespace where appropriate.
      */
     public List<Token> lex() {
-        throw new UnsupportedOperationException(); //TODO
+
+        //throw new UnsupportedOperationException(); Comment this out?
+        List<Token> tokens = new ArrayList<>();
+        while (peek()) {
+            lexToken();
+        }
+        return tokens;
     }
 
     /**
@@ -39,31 +46,93 @@ public final class Lexer {
      * by {@link #lex()}
      */
     public Token lexToken() {
-        throw new UnsupportedOperationException(); //TODO
+        if (peek("[A-Za-z]")) {
+            return lexIdentifier();
+        }
+        else if (peek("[0-9]")) {
+            return lexNumber();
+        }
+        else if (peek("'")) {
+            return lexCharacter();
+        }
+        else if (peek("\"")) {
+            return lexString();
+        }
+        else if (peek("[^\\s]")) {
+            return lexOperator();
+        }
+        else {
+            throw new UnsupportedOperationException("Invalid token at index " + chars.index); //TODO
+        }
+
     }
 
     public Token lexIdentifier() {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("@?[A-Za-z_][A-Za-z0-9_-]*")) {
+            return chars.emit(Token.Type.IDENTIFIER);
+        }
+        else
+        {
+            throw new UnsupportedOperationException("Invalid identifier at index " + chars.index);
+        }
     }
 
     public Token lexNumber() {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("-?[1-9][0-9]*")) {
+            // Non-zero integer
+            return chars.emit(Token.Type.INTEGER);
+        }
+        else if (match("0")) {
+            // Zero
+            return chars.emit(Token.Type.INTEGER);
+        }
+        else if (match("-?[1-9][0-9]*\\.[0-9]+")) {
+            // Decimal
+            return chars.emit(Token.Type.DECIMAL);
+        }
+        else if (match("-?0\\.[0-9]+")) {
+            // Decimal starting with zero
+            return chars.emit(Token.Type.DECIMAL);
+        }
+        else {
+            throw new UnsupportedOperationException("Invalid number at index " + chars.index);
+        }
+
     }
 
     public Token lexCharacter() {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("'[^\\\\\\n\\r']'")) {
+            return chars.emit(Token.Type.CHARACTER);
+        }
+        else {
+            throw new UnsupportedOperationException("Invalid character at index " + chars.index);
+        }
     }
 
     public Token lexString() {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("\"([^\\\\\"]|\\\\[bnrt'\"\\\\])*\"")) {
+            return chars.emit(Token.Type.STRING);
+        }
+        else {
+            throw new UnsupportedOperationException("Invalid string at index " + chars.index);
+        }
     }
 
     public void lexEscape() {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("\\\\[bnrt'\"\\\\]")) {
+            // Valid escape sequence
+        } else {
+            throw new UnsupportedOperationException("Invalid escape sequence at index " + chars.index);
+        }
     }
 
     public Token lexOperator() {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("[^\\s]")) {
+            return chars.emit(Token.Type.OPERATOR);
+        }
+        else {
+            throw new UnsupportedOperationException("Invalid operator at index " + chars.index);
+        }
     }
 
     /**
@@ -72,7 +141,14 @@ public final class Lexer {
      * return true if the next characters are {@code 'a', 'b', 'c'}.
      */
     public boolean peek(String... patterns) {
-        throw new UnsupportedOperationException(); //TODO (in Lecture)
+        for (int i = 0; i <patterns.length; i++) {
+            if ( !chars.has(i) ||
+            !String.valueOf(chars.get(i)).matches(patterns[i])) {
+                return false;
+            }
+        }
+        return true;
+        //throw new UnsupportedOperationException(); //TODO (in Lecture)
     }
 
     /**
@@ -81,7 +157,14 @@ public final class Lexer {
      * true. Hint - it's easiest to have this method simply call peek.
      */
     public boolean match(String... patterns) {
-        throw new UnsupportedOperationException(); //TODO (in Lecture)
+        boolean peek = peek(patterns);
+        if (peek) {
+            for (int i = 0; i < patterns.length; i++) {
+                chars.advance();
+            }
+        }
+        return peek;
+        //throw new UnsupportedOperationException(); //TODO (in Lecture)
     }
 
     /**
