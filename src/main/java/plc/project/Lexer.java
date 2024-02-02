@@ -56,8 +56,7 @@ public final class Lexer {
         //may need to change
         Token token;
         if (peek("[A-Za-z@_][A-Za-z0-9_-]*")) {
-            token= lexIdentifier();
-        }
+            token= lexIdentifier();}
         else if (peek("-?[1-9][0-9]*|0")) {
             token= lexNumber();
         }
