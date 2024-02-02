@@ -3,6 +3,7 @@ package plc.project;
 import java.util.ArrayList;
 import java.util.List;
 
+
 /**
  * The lexer works through three main functions:
  *
@@ -51,92 +52,97 @@ public final class Lexer {
      * by {@link #lex()}
      */
     public Token lexToken() {
-        if (peek("@?[A-Za-z_][A-Za-z0-9_-]*")) {
-            return lexIdentifier();
+
+        //may need to change
+        Token token;
+        if (peek("[A-Za-z@_][A-Za-z0-9_-]*")) {
+            token= lexIdentifier();
         }
-        else if (match("-?[1-9][0-9]*")) {
-            // Non-zero integer
-            return chars.emit(Token.Type.INTEGER);
+        else if (peek("-?[1-9][0-9]*|0")) {
+            token= lexNumber();
         }
-        else if (match("0")) {
-            // Zero
-            return chars.emit(Token.Type.INTEGER);
-        }
-        else if (match("-?[1-9][0-9]*\\.[0-9]+")) {
-            // Decimal
-            return chars.emit(Token.Type.DECIMAL);
-        }
-        else if (match("-?0\\.[0-9]+")) {
-            // Decimal starting with zero
-            return chars.emit(Token.Type.DECIMAL);
-        }
-        else if (peek("'[^\\\\\\n\\r]'")) {
-            return lexCharacter();
+        else if (peek("'.'")) {
+           token = lexCharacter();
         }
         else if (peek("\"([^\\\\\"\\n\\r]|\\\\[bnrt'\"\\\\.])*\"")) {
-            return lexString();
-        }
-        else if (peek("[^\\s]")) {
-            return lexOperator();
+           token = lexString();
         }
         else {
-            throw new UnsupportedOperationException("Invalid token at index " + chars.index);
+             token= lexOperator();
         }
+        return token;
     }
+
 
     public Token lexIdentifier() {
-        if (match("@?[A-Za-z_][A-Za-z0-9_-]*")) {
-            return chars.emit(Token.Type.IDENTIFIER);
+        chars.advance(); // Advance past the first character
+        while (peek("[A-Za-z0-9_\\-]")) {
+            chars.advance();
         }
-        else
-        {
-            throw new UnsupportedOperationException("Invalid identifier at index " + chars.index);
-        }
+        return chars.emit(Token.Type.IDENTIFIER);
     }
+
+
 
     public Token lexNumber() {
-        if (match("-?[1-9][0-9]+")) {
-            // Non-zero integer with multiple digits
-            return chars.emit(Token.Type.INTEGER);
-        }
-        else if (match("0")) {
-            // Zero
-            return chars.emit(Token.Type.INTEGER);
-        }
-        else if (match("-?[1-9][0-9]*\\.[0-9]+")) {
-            // Decimal
-            return chars.emit(Token.Type.DECIMAL);
-        }
-        else if (match("-?0\\.[0-9]+")) {
-            // Decimal starting with zero
-            return chars.emit(Token.Type.DECIMAL);
-        }
-        else {
-            throw new UnsupportedOperationException("Invalid number at index " + chars.index);
+        // Regular expression to match integers and decimals
+        String numberPattern = "-?(0|[1-9][0-9]*)(\\.[0-9]+)?";
+
+        // Check if the input matches the number pattern
+        if (peek(numberPattern)) {
+            // If the input matches the pattern, get the matched number
+            String matchedNumber = String.valueOf(match(numberPattern));
+
+            // Check if the matched number contains a decimal point
+            boolean isDecimal = matchedNumber.contains(".");
+
+            // Emit the appropriate token type based on whether the number is decimal or integer
+            if (isDecimal) {
+                return chars.emit(Token.Type.DECIMAL);
+            } else {
+                return chars.emit(Token.Type.INTEGER);
+            }
         }
 
+        // If the input does not match the number pattern, throw an exception
+        throw new UnsupportedOperationException("Invalid number at index " + chars.index);
     }
+
+
+
+
+
+
 
     public Token lexCharacter() {
         if (match("'.'")) {
             // Single character
             return chars.emit(Token.Type.CHARACTER);
-        }
-        else if (peek("'\\\\n'")) {
+        } else if (peek("'\\\\n'")) {
             // Newline escape
-            return chars.emit(Token.Type.CHARACTER);
+            return lexString();
+        } else if (peek("'\\\\[nrt]'")) {
+            // Handle escape sequences like '\n', '\r', '\t'
+            lexEscape();
+            return lexString();
+        } else if (peek("'\\\\'")) {
+            // Match literal backslash: '\\'
+            return lexString();
+        } else if (peek("'[^\\\\]'")) {
+            // Match single character except backslash: '[^\\]'
+            return lexString();
         }
-        else if (match("'[^\\\\\\n\\r]'")) {
+        else if (match("'[^']'")) {
+            // Single character
             return chars.emit(Token.Type.CHARACTER);
-        }
-        else if (match("'\\\\[nrt]'")) {
-            lexEscape(); // Handle escape sequences like '\n', '\r', '\t'
-            return chars.emit(Token.Type.CHARACTER);
-        }
+            }
         else {
             throw new UnsupportedOperationException("Invalid character at index " + chars.index);
         }
     }
+
+
+
 
     public Token lexString() {
         if (match("\"([^\\\\\"\\n\\r]|\\\\[bnrt'\"\\\\.])*\"")) {
@@ -157,13 +163,33 @@ public final class Lexer {
     }
 
     public Token lexOperator() {
-        if (match("[^\\s]")) {
+        if (match("!=")) {
+            if (peek("=")) { // Check if the next character is '='
+                match("="); // Match the second '='
+            }
+            return chars.emit(Token.Type.OPERATOR);
+        } else if (match("==")) {
+            return chars.emit(Token.Type.OPERATOR);
+        } else if (match("&&")) {
+            return chars.emit(Token.Type.OPERATOR);
+        } else if (match("||")) {
+            return chars.emit(Token.Type.OPERATOR);
+        } else if (match("=")) {
+            return chars.emit(Token.Type.OPERATOR);
+        } else {
+            chars.advance();
             return chars.emit(Token.Type.OPERATOR);
         }
-        else {
-            throw new UnsupportedOperationException("Invalid operator at index " + chars.index);
-        }
     }
+
+
+
+
+
+
+
+
+
 
     /**
      * Returns true if the next sequence of characters match the given patterns,
@@ -171,14 +197,17 @@ public final class Lexer {
      * return true if the next characters are {@code 'a', 'b', 'c'}.
      */
     public boolean peek(String... patterns) {
-        for (int i = 0; i <patterns.length; i++) {
-            if ( !chars.has(i) ||
-            !String.valueOf(chars.get(i)).matches(patterns[i])) {
+        for (int i = 0; i < patterns.length; i++) {
+            // Check if there are enough characters in the stream for the pattern
+            if (!chars.has(i)) {
+                return false;
+            }
+            // Check if the character at index i matches the pattern
+            if (!String.valueOf(chars.get(i)).matches(patterns[i])) {
                 return false;
             }
         }
         return true;
-        //throw new UnsupportedOperationException();
     }
 
     /**
