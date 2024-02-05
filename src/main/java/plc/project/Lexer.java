@@ -53,13 +53,18 @@ public final class Lexer {
      * by {@link #lex()}
      */
     public Token lexToken() {
+        // Skip whitespace
+        while (chars.has(0) && Character.isWhitespace(chars.get(0))) {
+            chars.advance();
+        }
+
         if (peek("[A-Za-z@_][A-Za-z0-9_-]*")) {
             return lexIdentifier();
-        } else if (peek("-?[0-9]+(\\.[0-9]+)?")) {
+        } else if (peek("-|\\d")) {
             return lexNumber();
         } else if (peek("\\'")) {
             return lexCharacter();
-        } else if (peek("\"([^\\\\\"\\n\\r]|\\\\[bnrt'\"\\\\.])*\"")) {
+        } else if (peek("[\"]")) {
             return lexString();
         } else {
             return lexOperator();
@@ -67,12 +72,17 @@ public final class Lexer {
     }
 
 
+
     public Token lexIdentifier() {
-        chars.advance();
+        StringBuilder identifier = new StringBuilder(); // Initialize StringBuilder to store the identifier
+
+        // Append characters to the identifier while they match the identifier pattern
         while (peek("[A-Za-z0-9_\\-]")) {
-            chars.advance();
+            identifier.append(chars.get(0)); // Append current character to the identifier
+            chars.advance(); // Move to the next character
         }
-        return chars.emit(Token.Type.IDENTIFIER);
+
+        return chars.emit(Token.Type.IDENTIFIER); // Emit identifier token
     }
 
 
@@ -85,22 +95,34 @@ public final class Lexer {
         if (match("0")) {
             hasDigits = true; // If the number starts with '0', it has digits
             if (peek("\\.")) {
-                hasDecimal = true; //If there's a '.', it's a decimal number
-                match("\\."); //Consume the decimal point
+                hasDecimal = true; // If there's a '.', it's a decimal number
+                match("\\."); // Consume the decimal point
                 if (!match("[0-9]")) {
                     // If there are no digits following the decimal point, it's an integer
                     return chars.emit(Token.Type.INTEGER);
                 }
-                while (match("[0-9]")); //Consume remaining digits
+                while (match("[0-9]")); // Consume remaining digits
             }
-        } else if (match("-")) {
+        } else if (peek("-")) {
+            // Check if the negative sign is followed by digits
+            chars.advance(); // Move past the negative sign
             isNegative = true;
-            if (!peek("[0-9]")) {
+            if (!match("[0-9]")) {
                 // If the hyphen is not followed by a digit, it's an operator
                 return chars.emit(Token.Type.OPERATOR);
             }
-            // If the hyphen is followed by a digit, it's a negative number
-            return lexNumber(); // Call the function to lex the actual number part
+            // If the hyphen is followed by a digit, proceed to parse the negative integer
+            hasDigits = true;
+            while (match("[0-9]")); // Consume remaining digits
+            if (peek("\\.")) {
+                hasDecimal = true; // If there's a '.', it's a decimal number
+                match("\\."); // Consume the decimal point
+                if (!match("[0-9]")) {
+                    // If there are no digits following the decimal point, it's an integer
+                    return chars.emit(Token.Type.INTEGER);
+                }
+                while (match("[0-9]")); // Consume remaining digits
+            }
         } else if (match("[1-9]")) {
             hasDigits = true; // If the number starts with a non-zero digit, it has digits
             while (match("[0-9]")); // Consume remaining digits
@@ -171,14 +193,39 @@ public final class Lexer {
 
 
 
-
     public Token lexString() throws ParseException {
-        if (match("\"([^\\\\\"\\n\\r]|\\\\[bnrt'\"\\\\.])*\"")) {
-            return chars.emit(Token.Type.STRING);
-        } else {
-            throw new ParseException("Invalid string", chars.index);
+        chars.advance(); // Move passed the opening double quote
+        StringBuilder stringBuilder = new StringBuilder();
+
+        while (chars.has(0)) {
+            char currentChar = chars.get(0);
+
+            if (currentChar == '\\') {
+                chars.advance(); // Move passed the backslash
+                if (!chars.has(0)) {
+                    throw new ParseException("Unterminated escape sequence", chars.index - 1);
+                }
+                char escapedChar = chars.get(0);
+                if (escapedChar == '"' || escapedChar == '\\' || escapedChar == 'b' || escapedChar == 'n'
+                        || escapedChar == 'r' || escapedChar == 't') {
+                    stringBuilder.append(escapedChar);
+                    chars.advance(); // Move passed the escaped character
+                } else {
+                    throw new ParseException("Invalid escape sequence", chars.index - 1);
+                }
+            } else if (currentChar == '"') {
+                chars.advance(); // Move passed the closing double quote
+                return chars.emit(Token.Type.STRING);
+            } else {
+                stringBuilder.append(currentChar);
+                chars.advance(); // Move to the next character
+            }
         }
+
+        // If we reached this point, it means the string is unterminated
+        throw new ParseException("Unterminated string literal", chars.index);
     }
+
 
 
     public void lexEscape() throws ParseException {
@@ -191,7 +238,7 @@ public final class Lexer {
             case '\'':
             case '\"':
             case '\\':
-                chars.advance(); // Advance past the escape character
+                chars.advance(); // Advance passed the escape character
                 break;
             default:
                 throw new ParseException("Invalid escape sequence", chars.index);
