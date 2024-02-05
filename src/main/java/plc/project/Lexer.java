@@ -148,7 +148,7 @@ public final class Lexer {
 
         if (currentChar == '\\') {
             chars.advance(); // Move past the backslash
-        lexEscape(); // Handling escape sequence
+        lexEscape(); //Handling escape sequence
         } else {
             chars.advance(); // Move past the character
         }
