@@ -138,7 +138,7 @@ public final class Lexer {
 
 
     public Token lexCharacter() {
-        chars.advance(); // Move past the opening apostrophe
+        chars.advance(); // Move passed the opening apostrophe
 
         if (chars.index >= chars.input.length()) {
             throw new ParseException("Unterminated character literal", chars.index);
@@ -147,17 +147,17 @@ public final class Lexer {
         char currentChar = chars.input.charAt(chars.index);
 
         if (currentChar == '\\') {
-            chars.advance(); // Move past the backslash
+            chars.advance(); // Move passed the backslash
         lexEscape(); //Handling escape sequence
         } else {
-            chars.advance(); // Move past the character
+            chars.advance(); // Move passed the character
         }
 
         if (chars.index >= chars.input.length() || chars.input.charAt(chars.index) != '\'') {
             throw new ParseException("Unterminated character literal", chars.index);
         }
 
-        chars.advance(); // Move past the closing apostrophe
+        chars.advance(); // Move passed the closing apostrophe
 
         return chars.emit(Token.Type.CHARACTER);
     }
