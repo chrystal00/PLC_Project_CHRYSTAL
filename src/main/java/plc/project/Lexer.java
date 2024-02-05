@@ -137,30 +137,33 @@ public final class Lexer {
 
 
 
-
-
     public Token lexCharacter() {
-        StringBuilder character = new StringBuilder(); // Initialize StringBuilder to store the character literal
+        chars.advance(); // Move past the opening apostrophe
 
-        chars.advance(); //go past apostrophe
-
-        while (chars.index < chars.input.length() && chars.input.charAt(chars.index) != '\'') {
-            if (chars.input.charAt(chars.index) == '\\') {
-                lexEscape(); // Handling escape sequence
-            } else {
-                character.append(chars.input.charAt(chars.index)); // Append current character to the StringBuilder
-            }
-            chars.index++; //Move to the next character
-        }
-
-        if (chars.index < chars.input.length()) {
-            chars.index++;
-        } else {
+        if (chars.index >= chars.input.length()) {
             throw new ParseException("Unterminated character literal", chars.index);
         }
 
-        return chars.emit(Token.Type.CHARACTER); //emit character token
+        char currentChar = chars.input.charAt(chars.index);
+
+        if (currentChar == '\\') {
+            chars.advance(); // Move past the backslash
+        lexEscape(); // Handling escape sequence
+        } else {
+            chars.advance(); // Move past the character
+        }
+
+        if (chars.index >= chars.input.length() || chars.input.charAt(chars.index) != '\'') {
+            throw new ParseException("Unterminated character literal", chars.index);
+        }
+
+        chars.advance(); // Move past the closing apostrophe
+
+        return chars.emit(Token.Type.CHARACTER);
     }
+
+
+
 
 
 
