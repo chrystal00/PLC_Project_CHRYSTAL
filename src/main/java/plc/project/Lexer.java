@@ -37,6 +37,7 @@ public final class Lexer {
             char current = chars.get(0);
             if (Character.isWhitespace(current)) {
                 chars.advance(); // Skip whitespace
+                chars.skip();
             } else {
                 tokens.add(lexToken());
             }
@@ -76,14 +77,22 @@ public final class Lexer {
     public Token lexIdentifier() {
         StringBuilder identifier = new StringBuilder(); // Initialize StringBuilder to store the identifier
 
+        // Skip whitespace
+        while (chars.has(0) && Character.isWhitespace(chars.get(0))) {
+            chars.advance();
+        }
+
         // Append characters to the identifier while they match the identifier pattern
         while (peek("[A-Za-z0-9_\\-]")) {
             identifier.append(chars.get(0)); // Append current character to the identifier
             chars.advance(); // Move to the next character
         }
 
-        return chars.emit(Token.Type.IDENTIFIER); // Emit identifier token
+        // Emit identifier token
+        return chars.emit(Token.Type.IDENTIFIER);
     }
+
+
 
 
 
@@ -159,27 +168,27 @@ public final class Lexer {
 
 
 
-    public Token lexCharacter() {
-        chars.advance(); // Move passed the opening apostrophe
+    public Token lexCharacter() throws ParseException {
+        chars.advance(); // Move past the opening apostrophe
 
-        if (chars.index >= chars.input.length()) {
+        if (!chars.has(0)) {
             throw new ParseException("Unterminated character literal", chars.index);
         }
 
-        char currentChar = chars.input.charAt(chars.index);
+        char currentChar = chars.get(0);
 
         if (currentChar == '\\') {
-            chars.advance(); // Move passed the backslash
-        lexEscape(); //Handling escape sequence
+            chars.advance(); // Move past the backslash
+            lexEscape(); // Handle escape sequence
         } else {
-            chars.advance(); // Move passed the character
+            chars.advance(); // Move past the character
         }
 
-        if (chars.index >= chars.input.length() || chars.input.charAt(chars.index) != '\'') {
+        if (!chars.has(0) || chars.get(0) != '\'') {
             throw new ParseException("Unterminated character literal", chars.index);
         }
 
-        chars.advance(); // Move passed the closing apostrophe
+        chars.advance(); // Move past the closing apostrophe
 
         return chars.emit(Token.Type.CHARACTER);
     }
