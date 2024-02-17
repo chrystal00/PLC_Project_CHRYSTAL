@@ -2,6 +2,8 @@ package plc.project;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.math.BigInteger;
+import java.math.BigDecimal;
 
 
 /**
@@ -262,7 +264,30 @@ public final class Parser {
      * Parses the {@code multiplicative-expression} rule.
      */
     public Ast.Expression parseMultiplicativeExpression() throws ParseException {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        Ast.Expression primaryExpression = parsePrimaryExpression(); // Parse the first primary expression
+
+        List<String> operators = new ArrayList<>();
+        List<Ast.Expression> operands = new ArrayList<>();
+        operands.add(primaryExpression);
+
+        // Parse multiplicative operators and primary expressions
+        while (peek("*", "/", "^")) {
+            operators.add(tokens.get(0).getLiteral());
+            tokens.advance(); // Consume the operator
+            Ast.Expression nextPrimaryExpression = parsePrimaryExpression();
+            operands.add(nextPrimaryExpression);
+        }
+
+        // Build the binary tree of multiplicative expressions
+        Ast.Expression expression = operands.get(0);
+        for (int i = 0; i < operators.size(); i++) {
+            String operator = operators.get(i);
+            Ast.Expression rightOperand = operands.get(i + 1);
+            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
+        }
+
+        return expression;
     }
 
     /**
@@ -272,8 +297,7 @@ public final class Parser {
      * not strictly necessary.
      */
     public Ast.Expression parsePrimaryExpression() throws ParseException {
-       throw new UnsupportedOperationException(); //TODO
-
+    throw new UnsupportedOperationException(); //TODO
 
     }
 
