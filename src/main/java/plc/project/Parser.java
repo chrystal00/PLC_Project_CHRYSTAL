@@ -233,6 +233,29 @@ public final class Parser {
      */
     public Ast.Expression parseAdditiveExpression() throws ParseException {
         //throw new UnsupportedOperationException(); //TODO
+        Ast.Expression multiplicativeExpression = parseMultiplicativeExpression();
+
+        List<String> operators = new ArrayList<>();
+        List<Ast.Expression> operands = new ArrayList<>();
+        operands.add(multiplicativeExpression);
+
+        // Parse additive operators and multiplicative expressions
+        while (peek("+", "-")) {
+            operators.add(tokens.get(0).getLiteral());
+            tokens.advance(); // Consume the operator
+            Ast.Expression nextMultiplicativeExpression = parseMultiplicativeExpression();
+            operands.add(nextMultiplicativeExpression);
+        }
+
+        // Build the binary tree of additive expressions
+        Ast.Expression expression = operands.get(0);
+        for (int i = 0; i < operators.size(); i++) {
+            String operator = operators.get(i);
+            Ast.Expression rightOperand = operands.get(i + 1);
+            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
+        }
+
+        return expression;
     }
 
     /**
