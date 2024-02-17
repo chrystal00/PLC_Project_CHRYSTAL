@@ -173,7 +173,7 @@ public final class Parser {
      */
     public Ast.Expression parseLogicalExpression() throws ParseException {
         //throw new UnsupportedOperationException(); //TODO
-        Ast.Expression comparisonExpression = parseComparisonExpression(); // Parse the first comparison expression
+        Ast.Expression comparisonExpression = parseComparisonExpression();
 
         List<String> operators = new ArrayList<>();
         List<Ast.Expression> operands = new ArrayList<>();
@@ -187,7 +187,7 @@ public final class Parser {
             operands.add(nextComparisonExpression);
         }
 
-        // Build the binary tree of logical expressions
+        // Building binary tree of logical expressions
         Ast.Expression expression = operands.get(0);
         for (int i = 0; i < operators.size(); i++) {
             String operator = operators.get(i);
@@ -202,14 +202,37 @@ public final class Parser {
      * Parses the {@code comparison-expression} rule.
      */
     public Ast.Expression parseComparisonExpression() throws ParseException {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        Ast.Expression additiveExpression = parseAdditiveExpression(); // Parse the first additive expression
+
+        List<String> operators = new ArrayList<>();
+        List<Ast.Expression> operands = new ArrayList<>();
+        operands.add(additiveExpression);
+
+        // Parse comparison operators and additive expressions
+        while (peek("<", ">", "==", "!=")) {
+            operators.add(tokens.get(0).getLiteral());
+            tokens.advance(); // Consume the operator
+            Ast.Expression nextAdditiveExpression = parseAdditiveExpression();
+            operands.add(nextAdditiveExpression);
+        }
+
+        // Build the binary tree of comparison expressions
+        Ast.Expression expression = operands.get(0);
+        for (int i = 0; i < operators.size(); i++) {
+            String operator = operators.get(i);
+            Ast.Expression rightOperand = operands.get(i + 1);
+            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
+        }
+
+        return expression;
     }
 
     /**
      * Parses the {@code additive-expression} rule.
      */
     public Ast.Expression parseAdditiveExpression() throws ParseException {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
     }
 
     /**
