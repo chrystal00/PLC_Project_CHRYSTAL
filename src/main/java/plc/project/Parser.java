@@ -30,21 +30,8 @@ public final class Parser {
      * Parses the {@code source} rule.
      */
     public Ast.Source parseSource() throws ParseException {
-        // throw new UnsupportedOperationException(); //TODO
-        List<Ast.Global> globals = new ArrayList<>();
-        List<Ast.Function> functions = new ArrayList<>();
+        throw new UnsupportedOperationException(); //TODO
 
-        // Parse global declarations
-        while (peek(Token.Type.IDENTIFIER, "VAL", "VAR")) {
-            globals.add(parseGlobal());
-        }
-
-        // Parse function definitions
-        while (peek(Token.Type.IDENTIFIER, "FUN")) {
-            functions.add(parseFunction());
-        }
-
-        return new Ast.Source(globals, functions);
     }
 
     /**
@@ -52,26 +39,8 @@ public final class Parser {
      * next tokens start a global, aka {@code LIST|VAL|VAR}.
      */
     public Ast.Global parseGlobal() throws ParseException {
-      //  throw new UnsupportedOperationException(); //TODO
-        List<Ast.Global> globals = new ArrayList<>();
-        List<Ast.Function> functions = new ArrayList<>();
+      throw new UnsupportedOperationException(); //TODO
 
-        // Parse global declarations
-        while (peek(Token.Type.IDENTIFIER, "LIST", "VAR", "VAL")) {
-            globals.add(parseGlobal());
-        }
-
-        // Parse function definitions
-        while (peek(Token.Type.IDENTIFIER, "FUN")) {
-            functions.add(parseFunction());
-        }
-
-        // Assuming you want to return the first global from the list
-        if (!globals.isEmpty()) {
-            return globals.get(0); // Return the first global
-        } else {
-            throw new ParseException("No global declarations found.", tokens.index);
-        }
     }
 
     /**
@@ -79,16 +48,9 @@ public final class Parser {
      * next token declares a list, aka {@code LIST}.
      */
     public Ast.Global parseList() throws ParseException {
-        //throw new UnsupportedOperationException(); //TODO
-        if (match(Token.Type.IDENTIFIER, "LIST")) {
-            return parseList();
-        } else if (match(Token.Type.IDENTIFIER, "VAR")) {
-            return parseMutable();
-        } else if (match(Token.Type.IDENTIFIER, "VAL")) {
-            return parseImmutable();
-        } else {
-            throw new ParseException("Expected global declaration", tokens.index);
-        }
+
+        throw new UnsupportedOperationException(); //TODO
+
     }
 
     /**
@@ -130,8 +92,18 @@ public final class Parser {
      * If the next tokens do not start a declaration, if, while, or return
      * statement, then it is an expression/assignment statement.
      */
+    // Part a
     public Ast.Statement parseStatement() throws ParseException {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        Ast.Expression expression = parseExpression(); // Parse the expression
+
+        // Check if there's an assignment
+        if (match("=")) {
+            Ast.Expression assignmentValue = parseExpression();
+            return new Ast.Statement.Assignment(expression, assignmentValue);
+        } else {
+            return new Ast.Statement.Expression(expression);
+        }
     }
 
     /**
