@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.ArrayList;
 import java.math.BigInteger; // added
 import java.math.BigDecimal; // added
+import java.util.Optional;
+
 
 
 /**
@@ -41,7 +43,7 @@ public final class Parser {
      * next tokens start a global, aka {@code LIST|VAL|VAR}.
      */
     public Ast.Global parseGlobal() throws ParseException {
-      throw new UnsupportedOperationException(); //TODO
+        throw new UnsupportedOperationException(); //TODO
 
     }
 
@@ -60,7 +62,7 @@ public final class Parser {
      * next token declares a mutable global variable, aka {@code VAR}.
      */
     public Ast.Global parseMutable() throws ParseException {
-      throw new UnsupportedOperationException(); //TODO
+        throw new UnsupportedOperationException(); //TODO
 
 
     }
@@ -136,8 +138,8 @@ public final class Parser {
     }
 
     /**
-     * Parses a case or default statement block from the {@code switch} rule. 
-     * This method should only be called if the next tokens start the case or 
+     * Parses a case or default statement block from the {@code switch} rule.
+     * This method should only be called if the next tokens start the case or
      * default block of a switch statement, aka {@code CASE} or {@code DEFAULT}.
      */
     public Ast.Statement.Case parseCaseStatement() throws ParseException {
@@ -174,121 +176,105 @@ public final class Parser {
      * Parses the {@code logical-expression} rule.
      */
     public Ast.Expression parseLogicalExpression() throws ParseException {
-        //throw new UnsupportedOperationException(); //TODO
-        Ast.Expression comparisonExpression = parseComparisonExpression();
+        Ast.Expression side1 = parseComparisonExpression();
 
-        List<String> operators = new ArrayList<>();
-        List<Ast.Expression> operands = new ArrayList<>();
-        operands.add(comparisonExpression);
-
-        // Parse logical operators and comparison expressions
-        while (peek("&&", "||")) {
-            operators.add(tokens.get(0).getLiteral());
-            tokens.advance(); // Consume the operator
-            Ast.Expression nextComparisonExpression = parseComparisonExpression();
-            operands.add(nextComparisonExpression);
+        while (true) {
+            if (match("&&")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseComparisonExpression();
+                side1 = new Ast.Expression.Binary(exp, side1, side2);
+            } else if (match("||")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseComparisonExpression();
+                side1 = new Ast.Expression.Binary(exp, side1, side2);
+            } else {
+                break; // no more expressions, exit loop
+            }
         }
 
-        // Building binary tree of logical expressions
-        Ast.Expression expression = operands.get(0);
-        for (int i = 0; i < operators.size(); i++) {
-            String operator = operators.get(i);
-            Ast.Expression rightOperand = operands.get(i + 1);
-            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
-        }
-
-        return expression;
+        return side1;
     }
 
-    /**
-     * Parses the {@code comparison-expression} rule.
-     */
     public Ast.Expression parseComparisonExpression() throws ParseException {
-        //throw new UnsupportedOperationException(); //TODO
-        Ast.Expression additiveExpression = parseAdditiveExpression(); // Parse the first additive expression
+        Ast.Expression side1 = parseAdditiveExpression();
 
-        List<String> operators = new ArrayList<>();
-        List<Ast.Expression> operands = new ArrayList<>();
-        operands.add(additiveExpression);
-
-        // Parse comparison operators and additive expressions
-        while (peek("<", ">", "==", "!=")) {
-            operators.add(tokens.get(0).getLiteral());
-            tokens.advance(); // Consume the operator
-            Ast.Expression nextAdditiveExpression = parseAdditiveExpression();
-            operands.add(nextAdditiveExpression);
+        while (true) {
+            if (match("<")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseAdditiveExpression();
+                side1= new Ast.Expression.Binary(exp, side1, side2);
+            } else if (match(">")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseAdditiveExpression();
+                side1 = new Ast.Expression.Binary(exp, side1, side2);
+            } else if (match("==")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseAdditiveExpression();
+                side1 = new Ast.Expression.Binary(exp, side1, side2);
+            } else if (match("!=")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseAdditiveExpression();
+                side1= new Ast.Expression.Binary(exp, side1, side2);
+            } else {
+                break; //no more expressions, exit loop
+            }
         }
 
-        // Build the binary tree of comparison expressions
-        Ast.Expression expression = operands.get(0);
-        for (int i = 0; i < operators.size(); i++) {
-            String operator = operators.get(i);
-            Ast.Expression rightOperand = operands.get(i + 1);
-            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
-        }
-
-        return expression;
+        return side1;
     }
+
 
     /**
      * Parses the {@code additive-expression} rule.
      */
     public Ast.Expression parseAdditiveExpression() throws ParseException {
-        //throw new UnsupportedOperationException(); //TODO
-        Ast.Expression multiplicativeExpression = parseMultiplicativeExpression();
+        Ast.Expression side1 = parseMultiplicativeExpression();
 
-        List<String> operators = new ArrayList<>();
-        List<Ast.Expression> operands = new ArrayList<>();
-        operands.add(multiplicativeExpression);
-
-        // Parse additive operators and multiplicative expressions
-        while (peek("+", "-")) {
-            operators.add(tokens.get(0).getLiteral());
-            tokens.advance(); // Consume the operator
-            Ast.Expression nextMultiplicativeExpression = parseMultiplicativeExpression();
-            operands.add(nextMultiplicativeExpression);
+        while (true) {
+            if (match("+")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseMultiplicativeExpression();
+                side1 = new Ast.Expression.Binary(exp, side1, side2);
+            } else if (match("-")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parseMultiplicativeExpression();
+                side1= new Ast.Expression.Binary(exp, side1, side2);
+            } else {
+                break; //no more expressions, exit the loop
+            }
         }
 
-        // Build the binary tree of additive expressions
-        Ast.Expression expression = operands.get(0);
-        for (int i = 0; i < operators.size(); i++) {
-            String operator = operators.get(i);
-            Ast.Expression rightOperand = operands.get(i + 1);
-            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
-        }
-
-        return expression;
+        return side1;
     }
+
 
     /**
      * Parses the {@code multiplicative-expression} rule.
      */
     public Ast.Expression parseMultiplicativeExpression() throws ParseException {
-        //throw new UnsupportedOperationException(); //TODO
-        Ast.Expression primaryExpression = parsePrimaryExpression(); // Parse the first primary expression
+        Ast.Expression side1 = parsePrimaryExpression();
 
-        List<String> operators = new ArrayList<>();
-        List<Ast.Expression> operands = new ArrayList<>();
-        operands.add(primaryExpression);
-
-        // Parse multiplicative operators and primary expressions
-        while (peek("*", "/", "^")) {
-            operators.add(tokens.get(0).getLiteral());
-            tokens.advance(); // Consume the operator
-            Ast.Expression nextPrimaryExpression = parsePrimaryExpression();
-            operands.add(nextPrimaryExpression);
+        while (true) {
+            if (match("*")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parsePrimaryExpression();
+                side1= new Ast.Expression.Binary(exp, side1, side2);
+            } else if (match("/")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parsePrimaryExpression();
+                side1 = new Ast.Expression.Binary(exp,side1, side2);
+            } else if (match("^")) {
+                String exp = tokens.get(-1).getLiteral();
+                Ast.Expression side2 = parsePrimaryExpression();
+                side1 = new Ast.Expression.Binary(exp, side1, side2);
+            } else {
+                break; //no more expressions, exit the loop
+            }
         }
 
-        // Build the binary tree of multiplicative expressions
-        Ast.Expression expression = operands.get(0);
-        for (int i = 0; i < operators.size(); i++) {
-            String operator = operators.get(i);
-            Ast.Expression rightOperand = operands.get(i + 1);
-            expression = new Ast.Expression.Binary(operator, expression, rightOperand);
-        }
-
-        return expression;
+        return side1;
     }
+
 
     /**
      * Parses the {@code primary-expression} rule. This is the top-level rule
@@ -297,9 +283,126 @@ public final class Parser {
      * not strictly necessary.
      */
     public Ast.Expression parsePrimaryExpression() throws ParseException {
-    throw new UnsupportedOperationException(); //TODO
-
+        if (match("NIL")) {
+            return new Ast.Expression.Literal(null);
+        } else if (match("TRUE")) {
+            return new Ast.Expression.Literal(true);
+        } else if (match("FALSE")) {
+            return new Ast.Expression.Literal(false);
+        } else if (match(Token.Type.INTEGER)) {
+            return new Ast.Expression.Literal(new BigInteger(tokens.get(-1).getLiteral()));
+        } else if (match(Token.Type.DECIMAL)) {
+            return new Ast.Expression.Literal(new BigDecimal(tokens.get(-1).getLiteral()));
+        } else if (match(Token.Type.CHARACTER)) {
+            return parseCharacterLiteral(tokens.get(-1).getLiteral());
+        } else if (match(Token.Type.STRING)) {
+            return parseStringLiteral(tokens.get(-1).getLiteral());
+        } else if (match("(")) {
+            Ast.Expression expr = parseExpression();
+            expect(")");
+            return new Ast.Expression.Group(expr);
+        } else if (match(Token.Type.IDENTIFIER)) {
+            return parseIdentifierExpression();
+        } else {
+            throw new ParseException("Invalid Primary Expression", tokens.get(0).getIndex());
+        }
     }
+
+    private Ast.Expression parseCharacterLiteral(String literal) throws ParseException {
+        char chars = literal.charAt(1); // Extracting the character from the literal
+        if (chars == '\\') {
+            chars = handleEscapeCharacters(literal.charAt(2));
+        }
+        return new Ast.Expression.Literal(chars);
+    }
+
+    private Ast.Expression parseStringLiteral(String literal) throws ParseException {
+        String value = literal.substring(1, literal.length() - 1); // Removing quotes
+        value = value.replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\b", "\b")
+                .replace("\\r", "\r")
+                .replace("\\'", "\'")
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\");
+        return new Ast.Expression.Literal(value);
+    }
+
+    private Ast.Expression parseGroupExpression() throws ParseException {
+        Ast.Expression expr = parseExpression();
+        expect(")");
+        return new Ast.Expression.Group(expr);
+    }
+
+    private Ast.Expression parseIdentifierExpression() throws ParseException {
+        String identity = tokens.get(-1).getLiteral();
+        if (match("(")) {
+            return parseFunctionCall(identity);
+        } else if (match("[")) {
+            Ast.Expression indexExpr = parseExpression();
+            expect("]");
+            return new Ast.Expression.Access(Optional.of(indexExpr), identity);
+        } else {
+            return new Ast.Expression.Access(Optional.empty(), identity);
+        }
+    }
+
+
+
+    private Ast.Expression parseFunctionCall(String parseParen) throws ParseException {
+        List<Ast.Expression> arguments = new ArrayList<>();
+        if (!match(")")) {
+            arguments = parseExpressionList();
+        }
+
+
+        return new Ast.Expression.Function(parseParen, arguments);
+    }
+
+
+
+
+
+    private List<Ast.Expression> parseExpressionList() throws ParseException {
+        List<Ast.Expression> expressions = new ArrayList<>();
+        expressions.add(parseExpression());
+        while (match(",")) {
+            expressions.add(parseExpression());
+        }
+        return expressions;
+    }
+
+    private char handleEscapeCharacters(char x) throws ParseException {
+        switch (x) {
+            case 'n':
+                return '\n';
+            case 'b':
+                return '\b';
+            case 'r':
+                return '\r';
+            case 't':
+                return '\t';
+            case '\'':
+            case '\"':
+            case '\\':
+                return x;
+            default:
+                throw new ParseException("Invalid escape sequence: \\" + x, tokens.get(-1).getIndex());
+        }
+    }
+
+    private void expect(String expected) throws ParseException {
+        if (!match(expected)) {
+            if (tokens.has(0)) {
+                throw new ParseException("Expected '" + expected + "'", tokens.get(0).getIndex());
+            } else {
+                throw new ParseException("Unexpected end of input. Expected '" + expected + "'", -1);
+            }
+        }
+    }
+
+
+
 
     /**
      * As in the lexer, returns {@code true} if the current sequence of tokens
