@@ -37,8 +37,14 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Global ast) {
-        throw new UnsupportedOperationException(); //TODO
-
+       // throw new UnsupportedOperationException(); //TODO
+        if (ast.getValue().isPresent()) {
+            Environment.PlcObject value = visit(ast.getValue().get());
+            scope.defineVariable(ast.getName(), true, value); // Assuming all global variables are mutable
+        } else {
+            scope.defineVariable(ast.getName(), true, Environment.NIL); // Assuming all global variables are mutable
+        }
+        return Environment.create(true);
 
     }
 
@@ -50,7 +56,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Expression ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        return visit(ast.getExpression());
     }
 
     @Override
@@ -60,7 +67,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Assignment ast) {
-        throw new UnsupportedOperationException(); //TODO
+        throw new UnsupportedOperationException(); //
+
     }
 
     @Override
