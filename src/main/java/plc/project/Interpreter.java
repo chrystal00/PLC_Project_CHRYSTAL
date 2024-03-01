@@ -58,6 +58,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Statement.Expression ast) {
        // throw new UnsupportedOperationException(); //TODO
         return visit(ast.getExpression());
+        //
     }
 
     @Override
