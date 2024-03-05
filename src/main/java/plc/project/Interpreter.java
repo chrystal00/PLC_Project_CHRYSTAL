@@ -93,63 +93,111 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Assignment ast) {
-        throw new UnsupportedOperationException(); //
+       throw new UnsupportedOperationException(); //
 
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.If ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        for (Ast.Statement statement : ast.getThenStatements()) {
+            visit(statement);
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Switch ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        for (Ast.Statement.Case caseStatement : ast.getCases()) {
+            visit(caseStatement);
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Case ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        for (Ast.Statement statement : ast.getStatements()) {
+            visit(statement);
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.While ast) {
         throw new UnsupportedOperationException(); //TODO (in lecture)
+
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Return ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        throw new Return(visit(ast.getValue()));
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.Literal ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        return Environment.create(ast.getLiteral());
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.Group ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        return visit(ast.getExpression());
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.Binary ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        Environment.PlcObject left = visit(ast.getLeft());
+        Environment.PlcObject right = visit(ast.getRight());
+        switch (ast.getOperator()) {
+            case "+":
+                return Environment.create(requireType(Number.class, left).doubleValue() + requireType(Number.class, right).doubleValue());
+            case "-":
+                return Environment.create(requireType(Number.class, left).doubleValue() - requireType(Number.class, right).doubleValue());
+            case "*":
+                return Environment.create(requireType(Number.class, left).doubleValue() * requireType(Number.class, right).doubleValue());
+            case "/":
+                return Environment.create(requireType(Number.class, left).doubleValue() / requireType(Number.class, right).doubleValue());
+            case "==":
+                return Environment.create(left.getValue().equals(right.getValue()));
+            case "!=":
+                return Environment.create(!left.getValue().equals(right.getValue()));
+            case "<":
+                return Environment.create(requireType(Number.class, left).doubleValue() < requireType(Number.class, right).doubleValue());
+            case ">":
+                return Environment.create(requireType(Number.class, left).doubleValue() > requireType(Number.class, right).doubleValue());
+            case "<=":
+                return Environment.create(requireType(Number.class, left).doubleValue() <= requireType(Number.class, right).doubleValue());
+            case ">=":
+                return Environment.create(requireType(Number.class, left).doubleValue() >= requireType(Number.class, right).doubleValue());
+            default:
+                throw new RuntimeException("Unknown operator: " + ast.getOperator());
+        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.Access ast) {
         throw new UnsupportedOperationException(); //TODO
+
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.Function ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        List<Environment.PlcObject> arguments = ast.getArguments().stream().map(this::visit).collect(Collectors.toList());
+        Environment.Function function = scope.lookupFunction(ast.getName(), arguments.size());
+        return function.invoke(arguments);
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.PlcList ast) {
-        throw new UnsupportedOperationException(); //TODO
+       // throw new UnsupportedOperationException(); //TODO
+        List<Environment.PlcObject> values = ast.getValues().stream().map(this::visit).collect(Collectors.toList());
+        return Environment.create(values);
     }
 
     /**
