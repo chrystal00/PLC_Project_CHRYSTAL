@@ -171,20 +171,27 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             case "*":
                 return Environment.create(requireType(Number.class, left).doubleValue() * requireType(Number.class, right).doubleValue());
             case "/":
+                if (requireType(Number.class, right).doubleValue() == 0) {
+                    throw new ArithmeticException("Division by zero");
+                }
                 return Environment.create(requireType(Number.class, left).doubleValue() / requireType(Number.class, right).doubleValue());
             case "==":
                 return Environment.create(Objects.equals(left.getValue(), right.getValue()));
             case "!=":
-                return Environment.create(!left.getValue().equals(right.getValue()));
+                return Environment.create(!Objects.equals(left.getValue(), right.getValue()));
             case "<":
                 requireType(left.getValue().getClass(), right);
                 return Environment.create(requireType(Comparable.class, left).compareTo(requireType(Comparable.class, right)) < 0);
             case ">":
                 return Environment.create(requireType(Number.class, left).doubleValue() > requireType(Number.class, right).doubleValue());
-            case "<=":
-                return Environment.create(requireType(Number.class, left).doubleValue() <= requireType(Number.class, right).doubleValue());
-            case ">=":
-                return Environment.create(requireType(Number.class, left).doubleValue() >= requireType(Number.class, right).doubleValue());
+            case "&&":
+                return Environment.create(requireType(Boolean.class, left) && requireType(Boolean.class, right));
+            case "||":
+                return Environment.create(requireType(Boolean.class, left) || requireType(Boolean.class, right));
+            case "^":
+                BigInteger base = requireType(BigInteger.class, left);
+                BigInteger exponent = requireType(BigInteger.class, right);
+                return Environment.create(base.pow(exponent.intValue()));
             default:
                 throw new RuntimeException("Unknown operator: " + ast.getOperator());
         }
@@ -192,7 +199,16 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expression.Access ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        String name = ast.getName();
+        Optional<Ast.Expression> offset = ast.getOffset();
+
+        if (offset.isPresent()) {
+            throw new UnsupportedOperationException("Offset access is not supported in this implementation");
+        }
+
+        Environment.Variable variable = scope.lookupVariable(name);
+        return variable.getValue();
 
     }
 
