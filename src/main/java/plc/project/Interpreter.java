@@ -114,7 +114,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Statement.Assignment ast) {
        // throw new UnsupportedOperationException(); //
 
-        // Evaluate the expression on the right-hand side of the assignment
         Environment.PlcObject value = visit(ast.getValue());
 
         // Retrieve the name of the variable from the left-hand side expression
@@ -129,8 +128,21 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         // Retrieve the variable from the scope
         Environment.Variable variable = scope.lookupVariable(variableName);
 
-        // Update the value of the variable
-        variable.setValue(value);
+        // Check if the variable is a list
+        if (variable.getValue().getValue() instanceof List) {
+            // Update the list value with the new element
+            List<Object> list = (List<Object>) variable.getValue().getValue();
+            Optional<Ast.Expression> offset = ((Ast.Expression.Access) ast.getReceiver()).getOffset();
+            if (offset.isPresent() && offset.get() instanceof Ast.Expression.Literal) {
+                int index = ((BigInteger) ((Ast.Expression.Literal) offset.get()).getLiteral()).intValue();
+                list.set(index, value.getValue());
+            } else {
+                throw new RuntimeException("Invalid offset expression for list assignment.");
+            }
+        } else {
+            // If it's not a list, update the variable value directly
+            variable.setValue(value);
+        }
 
         // Return Environment.NIL
         return Environment.NIL;
