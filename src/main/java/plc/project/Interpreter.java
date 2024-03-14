@@ -152,27 +152,25 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Statement.If ast) {
         // throw new UnsupportedOperationException(); //TODO
-        Environment.PlcObject conditionResult = visit(ast.getCondition());
+        boolean conditionValue = requireType(Boolean.class, visit(ast.getCondition()));
 
-        if (conditionResult.getValue() instanceof Boolean) {
-            boolean conditionValue = (Boolean) conditionResult.getValue();
-            if (conditionValue) {
-                // Evaluate thenStatements
-                for (Ast.Statement statement : ast.getThenStatements()) {
-                    visit(statement);
-                }
-            } else if (!ast.getElseStatements().isEmpty()) {
-                // Evaluate elseStatements if condition is false and there are elseStatements
-                for (Ast.Statement statement : ast.getElseStatements()) {
-                    visit(statement);
-                }
+        // Create a new scope for the if statement
+        Scope ifScope = new Scope(scope);
+
+        // Execute the statements in the 'then' block if the condition is true
+        if (conditionValue) {
+            for (Ast.Statement statement : ast.getThenStatements()) {
+                visit(statement);
             }
         } else {
-            throw new RuntimeException("Condition expression must evaluate to a boolean value");
+            // Otherwise, execute the statements in the 'else' block if present
+            for (Ast.Statement statement : ast.getElseStatements()) {
+                visit(statement);
+            }
         }
 
-        // Return null as If statement doesn't return a value
-        return null;
+        // Return NIL as the result of the if statement
+        return Environment.NIL;
     }
 
     @Override
