@@ -88,7 +88,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Statement.Expression ast) {
         // throw new UnsupportedOperationException(); //TODO
-        return visit(ast.getExpression());
+        // Evaluate the expression
+        Environment.PlcObject result = visit(ast.getExpression());
+
+        // Return Environment.NIL
+        return Environment.NIL;
     }
 
     @Override
@@ -114,17 +118,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         Environment.PlcObject value = visit(ast.getValue());
 
         // Retrieve the name of the variable from the left-hand side expression
-        String variableName = null;
+        String variableName;
         if (ast.getReceiver() instanceof Ast.Expression.Access) {
-            Ast.Expression.Access access = (Ast.Expression.Access) ast.getReceiver();
-            if (access.getName() != null) {
-                variableName = access.getName();
-            } else {
-                // Handle the case where the variable name is not directly accessible
-                throw new RuntimeException("Variable name is not accessible.");
-            }
+            variableName = ((Ast.Expression.Access) ast.getReceiver()).getName();
         } else {
-            // Handle other types of expressions for the left-hand side
+            // Handle other types of expressions for the left-hand side (if any)
             throw new RuntimeException("Invalid left-hand side expression for assignment.");
         }
 
@@ -134,8 +132,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         // Update the value of the variable
         variable.setValue(value);
 
-        // Return the assigned value
-        return value;
+        // Return Environment.NIL
+        return Environment.NIL;
 
     }
 
@@ -251,6 +249,7 @@ return Environment.NIL;
         // throw new UnsupportedOperationException(); //TODO
         Environment.PlcObject left = visit(ast.getLeft());
         Environment.PlcObject right = visit(ast.getRight());
+
         switch (ast.getOperator()) {
             case "+":
                 if (left.getValue() instanceof String || right.getValue() instanceof String) {
