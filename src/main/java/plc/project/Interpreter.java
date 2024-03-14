@@ -60,7 +60,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         } else {
             scope.defineVariable(ast.getName(), true, Environment.NIL); // Assuming all global variables are mutable
         }
-        return Environment.create(true);
+        return Environment.NIL;
 
     }
 
@@ -69,6 +69,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         // throw new UnsupportedOperationException(); //TODO
         scope.defineFunction(ast.getName(), ast.getParameters().size(), args -> {
             Scope functionScope = new Scope(scope); // Create a new scope for the function
+            scope = functionScope;
+
             for (int i = 0; i < ast.getParameters().size(); i++) {
                 functionScope.defineVariable(ast.getParameters().get(i), true, args.get(i));
             }
@@ -79,6 +81,9 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 return Environment.NIL;
             } catch (Return returnValue) {
                 return returnValue.value;
+            }
+            finally {
+                scope = functionScope.getParent();
             }
         });
         return Environment.NIL;
@@ -264,6 +269,13 @@ return Environment.NIL;
     public Environment.PlcObject visit(Ast.Expression.Binary ast) {
         // throw new UnsupportedOperationException(); //TODO
         Environment.PlcObject left = visit(ast.getLeft());
+        if(ast.getOperator().equals("&&") || ast.getOperator().equals("||") ){
+            Boolean leftBooleanValue = requireType(Boolean.class, left);
+            if ((ast.getOperator().equals("&&") && !leftBooleanValue) || (ast.getOperator().equals("||") && leftBooleanValue)) {
+                //need to short circuit so don't evaluate the right side if the left side is enough
+                return Environment.create(leftBooleanValue);
+            }
+        }
         Environment.PlcObject right = visit(ast.getRight());
 
         switch (ast.getOperator()) {
@@ -274,19 +286,38 @@ return Environment.NIL;
                 if (left.getValue() instanceof BigInteger && right.getValue() instanceof BigInteger ) {
                     return Environment.create(requireType(BigInteger.class, left).add(requireType(BigInteger.class, right)));
                 }
-                else if (left.getValue() instanceof BigDecimal && right.getValue () instanceof BigInteger) {
+                else if (left.getValue() instanceof BigDecimal && right.getValue () instanceof BigDecimal) {
                     return Environment.create(requireType(BigDecimal.class, left).add(requireType(BigDecimal.class, right)));
                 }
                 else throw new RuntimeException("Operator Not Defined For Input Provided" + ast.getOperator());
             case "-":
-                return Environment.create(requireType(Number.class, left).doubleValue() - requireType(Number.class, right).doubleValue());
+                if (left.getValue() instanceof BigInteger && right.getValue() instanceof BigInteger ) {
+                    return Environment.create(requireType(BigInteger.class, left).subtract(requireType(BigInteger.class, right)));
+                }
+                else if (left.getValue() instanceof BigDecimal && right.getValue () instanceof BigDecimal) {
+                    return Environment.create(requireType(BigDecimal.class, left).subtract(requireType(BigDecimal.class, right)));
+                }
+                else throw new RuntimeException("Operator Not Defined For Input Provided" + ast.getOperator());
             case "*":
-                return Environment.create(requireType(Number.class, left).doubleValue() * requireType(Number.class, right).doubleValue());
+                if (left.getValue() instanceof BigInteger && right.getValue() instanceof BigInteger ) {
+                    return Environment.create(requireType(BigInteger.class, left).multiply(requireType(BigInteger.class, right)));
+                }
+                else if (left.getValue() instanceof BigDecimal && right.getValue () instanceof BigDecimal) {
+                    return Environment.create(requireType(BigDecimal.class, left).multiply(requireType(BigDecimal.class, right)));
+                }
+                else throw new RuntimeException("Operator Not Defined For Input Provided" + ast.getOperator());
             case "/":
                 if (requireType(Number.class, right).doubleValue() == 0) {
                     throw new ArithmeticException("Division by zero");
                 }
-                return Environment.create(requireType(Number.class, left).doubleValue() / requireType(Number.class, right).doubleValue());
+                if (left.getValue() instanceof BigInteger && right.getValue() instanceof BigInteger ) {
+                    return Environment.create(requireType(BigInteger.class, left).divide(requireType(BigInteger.class, right)));
+                }
+                else if (left.getValue() instanceof BigDecimal && right.getValue () instanceof BigDecimal) {
+                    return Environment.create(requireType(BigDecimal.class, left).divide(requireType(BigDecimal.class, right),RoundingMode.HALF_EVEN));
+                }
+                else throw new RuntimeException("Operator Not Defined For Input Provided" + ast.getOperator());
+
             case "==":
                 return Environment.create(Objects.equals(left.getValue(), right.getValue()));
             case "!=":
@@ -295,7 +326,8 @@ return Environment.NIL;
                 requireType(left.getValue().getClass(), right);
                 return Environment.create(requireType(Comparable.class, left).compareTo(requireType(Comparable.class, right)) < 0);
             case ">":
-                return Environment.create(requireType(Number.class, left).doubleValue() > requireType(Number.class, right).doubleValue());
+                requireType(left.getValue().getClass(), right);
+                return Environment.create(requireType(Comparable.class, left).compareTo(requireType(Comparable.class, right)) > 0);
             case "&&":
                 return Environment.create(requireType(Boolean.class, left) && requireType(Boolean.class, right));
             case "||":
@@ -316,7 +348,9 @@ return Environment.NIL;
         Optional<Ast.Expression> offset = ast.getOffset();
 
         if (offset.isPresent()) {
-            throw new UnsupportedOperationException("Offset access is not supported in this implementation");
+            Environment.PlcObject list = scope.lookupVariable(ast.getName()).getValue();
+            BigInteger offsetValue = requireType(BigInteger.class, visit(offset.get()));
+            return Environment.create(requireType(List.class, list).get(offsetValue.intValue()));
         }
 
         Environment.Variable variable = scope.lookupVariable(name);
@@ -335,7 +369,9 @@ return Environment.NIL;
     @Override
     public Environment.PlcObject visit(Ast.Expression.PlcList ast) {
         // throw new UnsupportedOperationException(); //TODO
-        List<Environment.PlcObject> values = ast.getValues().stream().map(this::visit).collect(Collectors.toList());
+        List<Object> values = ast.getValues().stream().map(this::visit)
+                .map(Environment.PlcObject::getValue)
+                .collect(Collectors.toList());
         return Environment.create(values);
     }
 
