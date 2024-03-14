@@ -19,6 +19,20 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             System.out.println(args.get(0).getValue());
             return Environment.NIL;
         });
+// New Logarithm Function from Lecture
+        scope.defineFunction ("logarithm", 1, args -> {
+            if (! (args.get(0).getValue() instanceof BigDecimal )) {
+                throw new RuntimeException("expected type BigDecimal. Received, " + args.get(0).getValue().getClass().getName());
+            }
+            BigDecimal bd1 = (BigDecimal) args.get(0).getValue();
+
+            BigDecimal bd2 = requireType(
+                    BigDecimal.class,
+                    Environment.create(args.get(0).getValue())
+            );
+            BigDecimal result = BigDecimal.valueOf(Math.log(bd2.doubleValue()));
+            return Environment.create(result);
+        });
     }
 
     public Scope getScope() {
@@ -94,7 +108,33 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Assignment ast) {
-        throw new UnsupportedOperationException(); //
+       // throw new UnsupportedOperationException(); //
+        // Evaluate the expression on the right-hand side of the assignment
+        Environment.PlcObject value = visit(ast.getValue());
+
+        // Retrieve the name of the variable from the left-hand side expression
+        String variableName = null;
+        if (ast.getReceiver() instanceof Ast.Expression.Access) {
+            Ast.Expression.Access access = (Ast.Expression.Access) ast.getReceiver();
+            if (access.getName() != null) {
+                variableName = access.getName();
+            } else {
+                // Handle the case where the variable name is not directly accessible
+                throw new RuntimeException("Variable name is not accessible.");
+            }
+        } else {
+            // Handle other types of expressions for the left-hand side
+            throw new RuntimeException("Invalid left-hand side expression for assignment.");
+        }
+
+        // Retrieve the variable from the scope
+        Environment.Variable variable = scope.lookupVariable(variableName);
+
+        // Update the value of the variable
+        variable.setValue(value);
+
+        // Return the assigned value
+        return value;
 
     }
 
@@ -127,14 +167,25 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.While ast) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+      //  throw new UnsupportedOperationException(); //TODO (in lecture)
+        while (requireType(Boolean.class, visit(ast.getCondition()))) {
+            try {
+                scope = new Scope(scope);
+            } finally {
 
+            }
+        }
+
+return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Return ast) {
         // throw new UnsupportedOperationException(); //TODO
-        throw new Return(visit(ast.getValue()));
+        Environment.PlcObject value = visit(ast.getValue());
+
+        // Throw a Return exception containing the value to be returned
+        throw new Return(value);
     }
 
     @Override
