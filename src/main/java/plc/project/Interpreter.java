@@ -109,6 +109,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Statement.Assignment ast) {
        // throw new UnsupportedOperationException(); //
+
         // Evaluate the expression on the right-hand side of the assignment
         Environment.PlcObject value = visit(ast.getValue());
 
@@ -141,19 +142,58 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Statement.If ast) {
         // throw new UnsupportedOperationException(); //TODO
-        for (Ast.Statement statement : ast.getThenStatements()) {
-            visit(statement);
+        Environment.PlcObject conditionResult = visit(ast.getCondition());
+
+        if (conditionResult.getValue() instanceof Boolean) {
+            boolean conditionValue = (Boolean) conditionResult.getValue();
+            if (conditionValue) {
+                // Evaluate thenStatements
+                for (Ast.Statement statement : ast.getThenStatements()) {
+                    visit(statement);
+                }
+            } else if (!ast.getElseStatements().isEmpty()) {
+                // Evaluate elseStatements if condition is false and there are elseStatements
+                for (Ast.Statement statement : ast.getElseStatements()) {
+                    visit(statement);
+                }
+            }
+        } else {
+            throw new RuntimeException("Condition expression must evaluate to a boolean value");
         }
-        return Environment.NIL;
+
+        // Return null as If statement doesn't return a value
+        return null;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Statement.Switch ast) {
-        // throw new UnsupportedOperationException(); //TODO
-        for (Ast.Statement.Case caseStatement : ast.getCases()) {
-            visit(caseStatement);
+        //throw new UnsupportedOperationException(); //TODO
+        Environment.PlcObject conditionValue = visit(ast.getCondition());
+
+        for (Ast.Statement.Case switchCase : ast.getCases()) {
+            // If there is no value associated with the case, it's a default case
+            if (!switchCase.getValue().isPresent()) {
+                for (Ast.Statement statement : switchCase.getStatements()) {
+                    visit(statement);
+                }
+                return Environment.NIL;
+            }
+
+            // Evaluate the case value
+            Environment.PlcObject caseValue = visit(switchCase.getValue().get());
+
+            // Check if the case value matches the condition value
+            if (Objects.equals(caseValue.getValue(), conditionValue.getValue())) {
+                for (Ast.Statement statement : switchCase.getStatements()) {
+                    visit(statement);
+                }
+                return Environment.NIL;
+            }
         }
+
+        // If no case matches the condition, return NIL
         return Environment.NIL;
+
     }
 
     @Override
@@ -171,7 +211,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         while (requireType(Boolean.class, visit(ast.getCondition()))) {
             try {
                 scope = new Scope(scope);
+                // added is this right?
+                for (Ast.Statement statement : ast.getStatements()) {
+                    visit(statement);
+                }
             } finally {
+                // added is this right?
+                scope = scope.getParent();
 
             }
         }
