@@ -247,7 +247,13 @@ return Environment.NIL;
     @Override
     public Environment.PlcObject visit(Ast.Expression.Literal ast) {
         //throw new UnsupportedOperationException(); //TODO
-        return Environment.create(ast.getLiteral());
+        // Check if the literal value is null
+        if (ast.getLiteral() == null) {
+            return Environment.NIL;
+        } else {
+            // If not null, create an environment object with the literal value
+            return Environment.create(ast.getLiteral());
+        }
     }
 
     @Override
