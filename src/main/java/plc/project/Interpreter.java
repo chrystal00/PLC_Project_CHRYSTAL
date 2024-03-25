@@ -83,7 +83,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 return returnValue.value;
             }
             finally {
-                scope = functionScope.getParent();
+                scope = scope.getParent();
             }
         });
         return Environment.NIL;
