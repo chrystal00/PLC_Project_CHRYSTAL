@@ -50,39 +50,17 @@ public final class Analyzer implements Ast.Visitor<Void> {
         String typeName = ast.getTypeName();
         Optional<Ast.Expression> value = ast.getValue();
 
+        Environment.Variable variable = scope.defineVariable(name, name, Environment.getType(ast.getTypeName()), ast.getMutable(), Environment.NIL);
+
         // Check if the value is present
         if (value.isPresent()) {
             Ast.Expression expression = value.get();
-
-            // Check if the expression is a Literal
-            if (expression instanceof Ast.Expression.Literal) {
-                Ast.Expression.Literal literal = (Ast.Expression.Literal) expression;
-                Object literalValue = literal.getLiteral();
-
-                // Check if the literal value is a Boolean
-                if (literalValue instanceof Boolean) {
-                    boolean initialValue = (Boolean) literalValue;
-                    // Check if the global variable type is BOOLEAN
-                    if ("Boolean".equals(typeName)) {
-                        // Define the variable in the current scope
-                        Environment.PlcObject plcObject = new Environment.PlcObject(new Scope(null), initialValue);
-                        Environment.Variable variable = scope.defineVariable(name, typeName, Environment.Type.BOOLEAN, false, plcObject);
-                        // Set the variable in the AST
-                        ast.setVariable(variable);
-                    } else {
-                        throw new RuntimeException("Global variable '" + name + "' must have type Boolean");
-                    }
-                } else {
-                    throw new RuntimeException("Value of type " + literalValue.getClass().getSimpleName() +
-                            " is not assignable to global variable '" + name + "' of type Boolean");
-                }
-            } else {
-                throw new RuntimeException("Unsupported expression type for global variable initialization");
-            }
-        } else {
-            // If the value is not present, throw an exception or handle accordingly
-            throw new RuntimeException("Value is required for global variable initialization");
+            visit(expression);
+            requireAssignable(variable.getType(), expression.getType());
         }
+
+        ast.setVariable(variable);
+
 
         return null;
     }
@@ -141,7 +119,14 @@ public final class Analyzer implements Ast.Visitor<Void> {
     public Void visit(Ast.Statement.If ast) {
        // throw new UnsupportedOperationException();  // TODO
         // Visit the condition expression
-        visit(ast.getCondition());
+        Ast.Expression condition = ast.getCondition();
+        visit(condition);
+        requireAssignable(Environment.Type.BOOLEAN, condition.getType());
+
+        // Check for Empty
+        if (ast.getThenStatements().isEmpty()) {
+            throw new RuntimeException("Then Statemetns are Empty");
+        }
 
         // Visit the then statements
         for (Ast.Statement statement : ast.getThenStatements()) {
@@ -264,22 +249,9 @@ public final class Analyzer implements Ast.Visitor<Void> {
     @Override
     public Void visit(Ast.Expression.Group ast) {
         //throw new UnsupportedOperationException();  // TODO
-        // Call the visit method for the inner expression
-        if (ast.getExpression() instanceof Ast.Expression.Literal) {
-            visit((Ast.Expression.Literal) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Group) {
-            visit((Ast.Expression.Group) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Binary) {
-            visit((Ast.Expression.Binary) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Access) {
-            visit((Ast.Expression.Access) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Function) {
-            visit((Ast.Expression.Function) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.PlcList) {
-            visit((Ast.Expression.PlcList) ast.getExpression());
-        } else {
-            throw new IllegalArgumentException("Unsupported expression type: " + ast.getExpression().getClass());
-        }
+        Ast.Expression expression = ast.getExpression();
+        visit(expression);
+        ast.setType(expression.getType());
 
 
         return null;
