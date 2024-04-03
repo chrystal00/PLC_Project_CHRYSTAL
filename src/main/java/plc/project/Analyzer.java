@@ -145,24 +145,33 @@ public final class Analyzer implements Ast.Visitor<Void> {
     public Void visit(Ast.Statement.If ast) {
        // throw new UnsupportedOperationException();  // TODO
         // Visit the condition expression
-        Ast.Expression condition = ast.getCondition();
-        visit(condition);
-        requireAssignable(Environment.Type.BOOLEAN, condition.getType());
+        visit(ast.getCondition());
 
-        // Check for Empty
-        if (ast.getThenStatements().isEmpty()) {
-            throw new RuntimeException("Then Statemetns are Empty");
+        // Ensure the condition is of type Boolean
+        if (ast.getCondition().getType() != Environment.Type.BOOLEAN) {
+            throw new RuntimeException("Condition must be of type Boolean");
         }
 
-        // Visit the then statements
+        // Check if thenStatements list is empty
+        if (ast.getThenStatements().isEmpty()) {
+            throw new RuntimeException("Then statements list is empty");
+        }
+
+        // Visit the then statements in a new scope
+        Scope thenScope = new Scope(scope);
+        scope = thenScope;
         for (Ast.Statement statement : ast.getThenStatements()) {
             visit(statement);
         }
+        scope = thenScope.getParent(); // Revert to the previous scope after visiting thenStatements
 
-        // Visit the else statements
+        // Visit the else statements in a new scope
+        Scope elseScope = new Scope(scope);
+        scope = elseScope;
         for (Ast.Statement statement : ast.getElseStatements()) {
             visit(statement);
         }
+        scope = elseScope.getParent(); // Revert to the previous scope after visiting elseStatements
 
         return null;
     }
@@ -360,19 +369,10 @@ public final class Analyzer implements Ast.Visitor<Void> {
     @Override
     public Void visit(Ast.Expression.Access ast) {
        // throw new UnsupportedOperationException();  // TODO
-        // Visit the offset expression if present
-        if (ast.getOffset().isPresent()) {
-            Ast.Expression offset = ast.getOffset().get();
-            visit(offset); // Visit the offset expression
-
-            // Check if the offset type is Integer
-            if (offset.getType() != Environment.Type.INTEGER) {
-                throw new RuntimeException("Offset type must be Integer.");
-            }
-        }
+        ast.getOffset().ifPresent(this::visit);
 
         // Retrieve the variable from the scope
-        Environment.Variable variable = ast.getVariable();
+        Environment.Variable variable = scope.lookupVariable(ast.getName());
 
         if (variable == null) {
             throw new RuntimeException("Variable '" + ast.getName() + "' not found in scope.");
@@ -381,7 +381,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
         // Set the variable of the expression, which internally sets the type of the expression
         ast.setVariable(variable);
 
-        return null; // Since this is a void method
+        return null;
 
     }
 
