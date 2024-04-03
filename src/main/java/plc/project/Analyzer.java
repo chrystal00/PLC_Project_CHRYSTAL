@@ -105,14 +105,20 @@ public final class Analyzer implements Ast.Visitor<Void> {
         Optional<Ast.Expression> value = ast.getValue();
 
         if (!typeName.isPresent()) {
-            throw new RuntimeException("Type is missing for variable '" + name + "'");
+            if (!value.isPresent()) {
+                throw new RuntimeException("Type and value are missing for variable '" + name + "'");
+            }
+            // If type is missing, infer the type from the value expression
+            Ast.Expression expression = value.get();
+            visit(expression);
+            typeName = Optional.of(expression.getType().getName());
         }
 
         Environment.Type type = Environment.getType(typeName.get());
         Environment.Variable variable;
 
         if (value.isPresent()) {
-            Ast.Expression expression = value.get(); // Access the expression directly here
+            Ast.Expression expression = value.get();
             visit(expression);
             requireAssignable(type, expression.getType());
         }
@@ -124,6 +130,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
         return null;
     }
+
 
     @Override
     public Void visit(Ast.Statement.Assignment ast) {
