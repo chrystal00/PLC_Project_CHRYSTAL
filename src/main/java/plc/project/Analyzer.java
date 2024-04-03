@@ -100,9 +100,28 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Statement.Declaration ast) {
-        //throw new UnsupportedOperationException();  // TODO
-        // Visit the optional expression if present
-        ast.getValue().ifPresent(expression -> visit(expression));
+        String name = ast.getName();
+        Optional<String> typeName = ast.getTypeName();
+        Optional<Ast.Expression> value = ast.getValue();
+
+        if (!typeName.isPresent()) {
+            throw new RuntimeException("Type is missing for variable '" + name + "'");
+        }
+
+        Environment.Type type = Environment.getType(typeName.get());
+        Environment.Variable variable;
+
+        if (value.isPresent()) {
+            Ast.Expression expression = value.get(); // Access the expression directly here
+            visit(expression);
+            requireAssignable(type, expression.getType());
+        }
+
+        // If value is absent, define a variable with NIL as the value
+        variable = scope.defineVariable(name, name, type, true, Environment.NIL);
+
+        ast.setVariable(variable);
+
         return null;
     }
 
@@ -147,9 +166,17 @@ public final class Analyzer implements Ast.Visitor<Void> {
         // Visit the switch condition
         visit(ast.getCondition());
 
-        // Visit each case block
+        // Analyze each case block within its own scope
         for (Ast.Statement.Case caseBlock : ast.getCases()) {
-            visit(caseBlock);
+            try {
+                scope = new Scope(scope); // Enter a new scope for the case block
+                // Analyze statements within the case block
+                for (Ast.Statement statement : caseBlock.getStatements()) {
+                    visit(statement);
+                }
+            } finally {
+                scope = scope.getParent(); // Exit the scope
+            }
         }
 
         return null;
@@ -158,7 +185,6 @@ public final class Analyzer implements Ast.Visitor<Void> {
     @Override
     public Void visit(Ast.Statement.Case ast) {
        // throw new UnsupportedOperationException();  // TODO
-        // Visit the case value if present
         ast.getValue().ifPresent(this::visit);
 
         // Visit each statement in the case block
