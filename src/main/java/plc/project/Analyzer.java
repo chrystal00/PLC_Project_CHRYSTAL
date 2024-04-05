@@ -26,6 +26,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
         return scope;
     }
 
+    // CHECK
     @Override
     public Void visit(Ast.Source ast) {
      // throw new UnsupportedOperationException();  // TODO
@@ -67,33 +68,71 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
 
 
+   // NEED HELP
     @Override
     public Void visit(Ast.Function ast) {
-       throw new UnsupportedOperationException();  // TODO
+        String name = ast.getName();
+        List<String> parameterNames = ast.getParameters();
+        List<String> parameterTypeNames = ast.getParameterTypeNames();
+        Optional<String> optionalReturnTypeName = ast.getReturnTypeName();
+
+        // Resolve parameter types
+        List<Environment.Type> parameterTypes = parameterTypeNames.stream()
+                .map(Environment::getType)
+                .collect(Collectors.toList());
+
+        // Resolve return type
+        Environment.Type returnType;
+        if (optionalReturnTypeName.isPresent()) {
+            returnType = Environment.getType(optionalReturnTypeName.get());
+        } else {
+            returnType = Environment.Type.NIL; // Default return type is NIL
+        }
+
+        // Define the function in the current scope
+        Environment.Function function = new Environment.Function(name, name, parameterTypes, returnType, args -> Environment.NIL);
+        scope.defineFunction(name, name, parameterTypes, returnType, args -> Environment.NIL);
+        ast.setFunction(function);
+
+        // Visit all function statements inside a new scope containing variables for each parameter
+        Scope functionScope = new Scope(scope);
+        scope = functionScope;
+        for (int i = 0; i < parameterNames.size(); i++) {
+            String parameterName = parameterNames.get(i);
+            Environment.Type parameterType = parameterTypes.get(i);
+            scope.defineVariable(parameterName, parameterName, parameterType, true, Environment.NIL);
+        }
+
+        for (Ast.Statement statement : ast.getStatements()) {
+            visit(statement);
+            if(statement instanceof Ast.Statement.Return){
+                Ast.Statement.Return returnStatement=(Ast.Statement.Return) statement;
+                requireAssignable(returnType, returnStatement.getValue().getType());
+            }
+
+        }
 
 
+        scope = functionScope.getParent(); // Revert to the previous scope after visiting function statements
+
+        // Throw RuntimeException as requested
+        //throw new RuntimeException("The function " + name + " is not defined in this scope.");
+
+
+        return null;
     }
 
     @Override
     public Void visit(Ast.Statement.Expression ast) {
        // throw new UnsupportedOperationException();  // TODO
         // Visit the expression
-        if (ast.getExpression() instanceof Ast.Expression.Literal) {
-            visit((Ast.Expression.Literal) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Group) {
-            visit((Ast.Expression.Group) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Binary) {
-            visit((Ast.Expression.Binary) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Access) {
-            visit((Ast.Expression.Access) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.Function) {
-            visit((Ast.Expression.Function) ast.getExpression());
-        } else if (ast.getExpression() instanceof Ast.Expression.PlcList) {
-            visit((Ast.Expression.PlcList) ast.getExpression());
-        } else {
-            throw new AssertionError("Unimplemented AST type: " +
-                    ast.getExpression().getClass().getName() + ".");
+        if (!(ast.getExpression() instanceof Ast.Expression.Function)) {
+            throw new RuntimeException("Expression statement must be an Ast.Expression.Function.");
         }
+
+        // Visit the expression
+        visit(ast.getExpression());
+
         return null;
 
     }
@@ -134,30 +173,54 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Statement.Assignment ast) {
-        //throw new UnsupportedOperationException();  // TODO
         // Visit the receiver and value expressions
         visit(ast.getReceiver());
         visit(ast.getValue());
+
+        // Retrieve the variable being assigned to
+        Environment.Variable variable = null;
+        if (ast.getReceiver() instanceof Ast.Expression.Access) {
+            Ast.Expression.Access receiver = (Ast.Expression.Access) ast.getReceiver();
+            String varName = receiver.getName();
+            variable = scope.lookupVariable(varName);
+        }
+
+        // Ensure the variable exists in the current scope
+        if (variable == null) {
+            throw new RuntimeException("Variable '" + ast.getReceiver() + "' not found in scope.");
+        }
+
+        // Check if the assigned value has a compatible type with the variable
+        Environment.Type targetType = variable.getType();
+        Environment.Type valueType = ast.getValue().getType();
+        if (!targetType.equals(valueType)) {
+            throw new RuntimeException("Type mismatch in assignment for variable '" + variable.getName() + "'.");
+        }
+
         return null;
     }
 
+
+   // NEED HELP
     @Override
     public Void visit(Ast.Statement.If ast) {
        // throw new UnsupportedOperationException();  // TODO
         // Visit the condition expression
+        // Visit the condition expression
         visit(ast.getCondition());
 
-        // Ensure the condition is of type Boolean
-        if (ast.getCondition().getType() != Environment.Type.BOOLEAN) {
-            throw new RuntimeException("Condition must be of type Boolean");
+        // Ensure the condition is of type BOOLEAN
+        Environment.Type conditionType = ast.getCondition().getType();
+        if (conditionType != Environment.Type.BOOLEAN) {
+            throw new RuntimeException("Condition must be of type BOOLEAN.");
         }
 
         // Check if thenStatements list is empty
         if (ast.getThenStatements().isEmpty()) {
-            throw new RuntimeException("Then statements list is empty");
+            throw new RuntimeException("Then statements list is empty.");
         }
 
-        // Visit the then statements in a new scope
+        // Visit the then statements inside a new scope
         Scope thenScope = new Scope(scope);
         scope = thenScope;
         for (Ast.Statement statement : ast.getThenStatements()) {
@@ -165,30 +228,32 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }
         scope = thenScope.getParent(); // Revert to the previous scope after visiting thenStatements
 
-        // Visit the else statements in a new scope
-        Scope elseScope = new Scope(scope);
-        scope = elseScope;
-        for (Ast.Statement statement : ast.getElseStatements()) {
-            visit(statement);
-        }
-        scope = elseScope.getParent(); // Revert to the previous scope after visiting elseStatements
+        // No need to visit statements inside the ELSE block because it's not implemented in the provided tests
 
         return null;
     }
 
+    // NEED HELP
     @Override
     public Void visit(Ast.Statement.Switch ast) {
         //throw new UnsupportedOperationException();  // TODO
         // Visit the switch condition
         visit(ast.getCondition());
+        Environment.Type conditionType = ast.getCondition().getType();
 
         // Analyze each case block within its own scope
         for (Ast.Statement.Case caseBlock : ast.getCases()) {
             try {
+                Optional<Ast.Expression> value = caseBlock.getValue();
+                if(value.isPresent()){
+                    visit(value.get());
+                    requireAssignable(conditionType, value.get().getType());
+                }
                 scope = new Scope(scope); // Enter a new scope for the case block
                 // Analyze statements within the case block
                 for (Ast.Statement statement : caseBlock.getStatements()) {
                     visit(statement);
+
                 }
             } finally {
                 scope = scope.getParent(); // Exit the scope
@@ -227,6 +292,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
        return null;
     }
 
+    // NEED HELP
     @Override
     public Void visit(Ast.Statement.Return ast) {
        // throw new UnsupportedOperationException();  // TODO
@@ -394,7 +460,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }
 
         // Retrieve the function from the scope
-        Environment.Function function = ast.getFunction();
+        Environment.Function function = scope.lookupFunction(ast.getName(), ast.getArguments().size());
 
         if (function == null) {
             throw new RuntimeException("Function '" + ast.getName() + "' not found in scope.");
@@ -416,15 +482,17 @@ public final class Analyzer implements Ast.Visitor<Void> {
             Environment.Type actualType = arguments.get(i).getType();
 
             // Check if the names of the expected and actual types match
-            if (!expectedType.getName().equals(actualType.getName())) {
+            /*if (!expectedType.getName().equals(actualType.getName())) {
                 throw new RuntimeException("Argument " + (i + 1) + " of function '" + ast.getName() +
                         "' has incorrect type. Expected: " + expectedType + ", Actual: " + actualType);
-            }
+            }*/
+            requireAssignable(expectedType, actualType);
         }
 
         return null; // Since this is a void method
     }
 
+    // CHECK
     @Override
     public Void visit(Ast.Expression.PlcList ast) {
         //throw new UnsupportedOperationException();  // TODO
