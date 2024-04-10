@@ -3,8 +3,6 @@ package plc.project;
 import java.io.PrintWriter;
 import java.util.List;
 
-import static java.sql.DriverManager.println;
-
 
 public final class Generator implements Ast.Visitor<Void> {
 
@@ -149,7 +147,7 @@ public final class Generator implements Ast.Visitor<Void> {
         }
 
         // Ensure semicolon at the end
-        println(";");
+        print(";");
 
         return null;
     }
