@@ -66,8 +66,9 @@ public final class Generator implements Ast.Visitor<Void> {
         print("}");
 
         newline(indent); // Add newline before closing bracket of class
+        newline(indent);
         print("}");
-        newline(indent); // Add newline after closing bracket of class
+
         return null;
     }
 
@@ -76,17 +77,19 @@ public final class Generator implements Ast.Visitor<Void> {
     @Override
     public Void visit(Ast.Global ast) {
         //throw new UnsupportedOperationException(); //TODO
-        print("public static ");
-        if (ast.getMutable()) {
-            print("var ");
-        } else {
+        if (!ast.getMutable()) {
             print("final ");
         }
-        print(ast.getTypeName() + " " + ast.getName());
+        print(ast.getVariable().getType().getJvmName());
+        if (ast.getValue().get() instanceof Ast.Expression.PlcList) {
+            print("[]");
+        }
+        print( " " + ast.getName());
         if (ast.getValue().isPresent()) {
             print(" = ");
             visit(ast.getValue().get());
         }
+        print(";");
         return null;
 
     }
@@ -120,6 +123,7 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Statement.Expression ast) {
         //throw new UnsupportedOperationException(); //TODO
         visit(ast.getExpression());
+        print(";");
         return null;
     }
 
@@ -158,6 +162,7 @@ public final class Generator implements Ast.Visitor<Void> {
         visit(ast.getReceiver());
         print(" = ");
         visit(ast.getValue());
+        print(";");
         return null;
     }
 
@@ -172,7 +177,7 @@ public final class Generator implements Ast.Visitor<Void> {
         // Generate thenStatements
         for (Ast.Statement statement : ast.getThenStatements()) {
             visit(statement);
-            print(";"); // End each statement with a semicolon
+            //print(";"); // End each statement with a semicolon
         }
 
         newline(indent); // Decrease indentation before closing brace
@@ -185,7 +190,7 @@ public final class Generator implements Ast.Visitor<Void> {
             // Generate elseStatements
             for (Ast.Statement statement : ast.getElseStatements()) {
                 visit(statement);
-                print(";"); // End each statement with a semicolon
+               // print(";"); // End each statement with a semicolon
             }
 
             newline(indent); // Decrease indentation before closing brace of else block
@@ -197,22 +202,23 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Statement.Switch ast) {
-       // throw new UnsupportedOperationException(); //TODO
         print("switch (");
         visit(ast.getCondition());
         print(") {");
-        newline(indent);
+        //newline(indent + 1); // Increase indentation for case blocks
+        indent++;
         for (Ast.Statement.Case switchCase : ast.getCases()) {
             visit(switchCase);
         }
-        newline(indent);
+        indent--;
+        newline(indent); // Decrease indentation before closing brace
         print("}");
         return null;
     }
 
     @Override
     public Void visit(Ast.Statement.Case ast) {
-       // throw new UnsupportedOperationException(); //TODO
+        newline(indent);
         if (ast.getValue().isPresent()) {
             print("case ");
             visit(ast.getValue().get());
@@ -220,13 +226,20 @@ public final class Generator implements Ast.Visitor<Void> {
         } else {
             print("default:");
         }
-        newline(indent + 1);
+
+        indent++; // Increase indentation for statements inside the case block
+
         for (Ast.Statement statement : ast.getStatements()) {
+            newline(indent); // Add indentation before each statement
             visit(statement);
         }
+        if (ast.getValue().isPresent()) {
+            newline(indent);
+            print("break;");
+        }
+        indent--; // Decrease indentation after processing statements inside the case block
         return null;
     }
-
     @Override
     public Void visit(Ast.Statement.While ast) {
         //throw new UnsupportedOperationException(); //TODO
@@ -263,6 +276,9 @@ public final class Generator implements Ast.Visitor<Void> {
 
         if (value instanceof String) {
             print("\"" + value + "\""); // Enclose string literals in double quotes
+        }
+        else if (value instanceof Character) {
+            print("'" + value + "'"); // Enclose string literals in double quotes
         } else {
             print(value.toString());
         }
@@ -352,21 +368,20 @@ public final class Generator implements Ast.Visitor<Void> {
             }
             print(")");
         }
-
         return null;
     }
 
     @Override
     public Void visit(Ast.Expression.PlcList ast) {
        // throw new UnsupportedOperationException(); //TODO
-        print("[");
+        print("{");
         for (int i = 0; i < ast.getValues().size(); i++) {
             if (i > 0) {
                 print(", ");
             }
             visit(ast.getValues().get(i));
         }
-        print("]");
+        print("}");
         return null;
     }
 
