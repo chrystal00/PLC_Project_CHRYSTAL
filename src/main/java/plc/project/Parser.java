@@ -26,17 +26,18 @@ public final class Parser {
      * Parses the {@code source} rule.
      */
     public Ast.Source parseSource() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
+
         List<Ast.Global> globals = new ArrayList<>();
         List<Ast.Function> functions = new ArrayList<>();
-// Parse global declarations
-        while (peek(Token.Type.IDENTIFIER, "VAL", "VAR")) {
+
+        while (peek("VAL") || peek( "VAR") || peek( "LIST")) {
             globals.add(parseGlobal());
         }
-// Parse function definitions
-        while (peek(Token.Type.IDENTIFIER, "FUN")) {
+
+        while (peek( "FUN")) {
             functions.add(parseFunction());
         }
+
         return new Ast.Source(globals, functions);
     }
     /**
@@ -44,158 +45,157 @@ public final class Parser {
      * next tokens start a global, aka {@code LIST|VAL|VAR}.
      */
     public Ast.Global parseGlobal() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
-        if (peek(Token.Type.IDENTIFIER) || peek( "LIST") || peek( "VAR") ||
-                peek( "VAL")) {
+        if ( peek( "LIST"))
             return parseList();
-        } else {
-            throw new ParseException("Expected global declaration", tokens.index);
-        }
+        if( peek( "VAR"))
+            return parseMutable();
+        if (peek( "VAL")) 
+            return parseImmutable();
+        
+        throw new ParseException("Expected global declaration", tokens.index);
     }
+    
     /**
      * Parses the {@code list} rule. This method should only be called if the
      * next token declares a list, aka {@code LIST}.
      */
     public Ast.Global parseList() throws ParseException {
-//throw new UnsupportedOperationException(); //TODO
-        if (match(Token.Type.IDENTIFIER, "LIST")) {
-            return parseList();
-        } else if (match(Token.Type.IDENTIFIER, "VAR")) {
-            return parseMutable();
-        } else if (match(Token.Type.IDENTIFIER, "VAL")) {
-            return parseImmutable();
-        } else {
-            throw new ParseException("Expected global declaration", tokens.index);
+        if(match("LIST")){
+            if(match(Token.Type.IDENTIFIER)){
+                String name= previous().getLiteral();
+                if(match(":")){
+                    if(match(Token.Type.IDENTIFIER)) {
+                        String typeName= previous().getLiteral();
+                        if(match("=")){
+                          if(match("[")){
+                              List<Ast.Expression> listElements=new ArrayList<>();
+                              listElements.add(parseExpression());
+                              while(match(",")){
+                                  listElements.add(parseExpression());
+                              }
+                              if(match("]")){
+                                  Ast.Expression.PlcList list= new Ast.Expression.PlcList(listElements);
+                                  return new Ast.Global(name, typeName, true, Optional.of(list));
+                              }
+                          }
+                        }
+                    }
+                }
+            }
         }
+        throw new ParseException("Expected global declaration", tokens.index);
+
     }
+
+    private Token previous() {
+        return tokens.get(-1);
+    }
+
     /**
      * Parses the {@code mutable} rule. This method should only be called if the
      * next token declares a mutable global variable, aka {@code VAR}.
      */
     public Ast.Global parseMutable() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
-// Check if there are enough tokens to parse
-        if (!peek("VAR")) {
-            throw new ParseException("Expected 'VAR' token",
-                    tokens.get(0).getIndex());
-        }
-// Consume 'VAR' token
-        Token varToken = tokens.get(0);
-        tokens.advance();
-// Check if there are enough tokens to parse
-        if (!peek(Token.Type.IDENTIFIER)) {
-            throw new ParseException("Expected an identifier after 'VAR'",
-                    varToken.getIndex());
-        }
-// Consume identifier
-        Token identifierToken = tokens.get(0);
-        tokens.advance();
-// Parse mutable global variable value (if present)
-        Optional<Ast.Expression> value = Optional.empty();
-        if (peek("=")) {
-// Consume '=' token
-            tokens.advance();
-// Check if there are enough tokens to parse
-            if (!peek(Token.Type.INTEGER, Token.Type.DECIMAL, Token.Type.CHARACTER,
-                    Token.Type.STRING, "NIL", "TRUE", "FALSE", "(", Token.Type.IDENTIFIER)) {
-                throw new ParseException("Expected an expression after '='",
-                        tokens.get(0).getIndex());
+        if(match("VAR")){
+            if(match(Token.Type.IDENTIFIER)) {
+                String name = previous().getLiteral();
+                if(match(":")) {
+                    if (match(Token.Type.IDENTIFIER)) {
+                        String typeName = previous().getLiteral();
+                        if(match("=")){
+                            Ast.Expression expr=parseExpression();
+                            return new Ast.Global(name, typeName, true, Optional.of(expr));
+                        } else {
+                            return new Ast.Global(name, typeName, true, Optional.empty());
+                        }
+                    }
+                }
             }
-// Parse expression
-            value = Optional.of(parseExpression());
+
+
         }
-// Check if there are enough tokens to parse
-        if (!peek(";")) {
-            throw new ParseException("Expected ';' after mutable global variable declaration", tokens.get(0).getIndex());
-        }
-// Consume ';'
-        Token semicolonToken = tokens.get(0);
-        tokens.advance();
-// Create and return Mutable Global AST node
-        return new Ast.Global(identifierToken.getLiteral(), true, value);
+        throw new ParseException("Parser exception at ", tokens.index);
+
     }
     /**
      * Parses the {@code immutable} rule. This method should only be called if the
      * next token declares an immutable global variable, aka {@code VAL}.
      */
     public Ast.Global parseImmutable() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
-// Check if there are enough tokens to parse
-        if (!peek("VAL")) {
-            throw new ParseException("Expected 'VAL' token",
-                    tokens.get(0).getIndex());
+        if(match("VAL")){
+            if(match(Token.Type.IDENTIFIER)) {
+                String name = previous().getLiteral();
+                if(match(":")) {
+                    if (match(Token.Type.IDENTIFIER)) {
+                        String typeName = previous().getLiteral();
+                        if(match("=")) {
+                            Ast.Expression expr = parseExpression();
+                            return new Ast.Global(name, typeName, false, Optional.of(expr));
+                        }
+                    }
+                }
+            }
         }
-// Consume 'VAL' token
-        Token valToken = tokens.get(0);
-        tokens.advance();
-// Check if there are enough tokens to parse
-        if (!peek(Token.Type.IDENTIFIER)) {
-            throw new ParseException("Expected an identifier after 'VAL'",
-                    valToken.getIndex());
-        }
-// Consume identifier
-        Token identifierToken = tokens.get(0);
-        tokens.advance();
-// Check if there are enough tokens to parse
-        if (!peek("=")) {
-            throw new ParseException("Expected '=' after immutable global variable declaration", tokens.get(0).getIndex());
-        }
-// Consume '=' token
-        tokens.advance();
-// Check if there are enough tokens to parse
-        if (!peek(Token.Type.INTEGER, Token.Type.DECIMAL, Token.Type.CHARACTER,
-                Token.Type.STRING, "NIL", "TRUE", "FALSE", "(", Token.Type.IDENTIFIER)) {
-            throw new ParseException("Expected an expression after '='",
-                    tokens.get(0).getIndex());
-        }
-// Parse expression
-        Ast.Expression value = parseExpression();
-// Check if there are enough tokens to parse
-        if (!peek(";")) {
-            throw new ParseException("Expected ';' after immutable global variable declaration", tokens.get(0).getIndex());
-        }
-// Consume ';'
-        Token semicolonToken = tokens.get(0);
-        tokens.advance();
-// Create and return Immutable Global AST node
-        return new Ast.Global(identifierToken.getLiteral(), false,
-                Optional.of(value));
+        throw new ParseException("Parser exception at ", tokens.index);
+
     }
     /**
      * Parses the {@code function} rule. This method should only be called if the
      * next tokens start a method, aka {@code FUN}.
      */
     public Ast.Function parseFunction() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
-        match("FUN"); // Ensure the next token is 'FUN'
-        Token functionNameToken = tokens.get(0); // Get the next token
-        if (functionNameToken.getType() != Token.Type.IDENTIFIER) { // Check if it's an identifier
-            throw new ParseException("Expected identifier after 'FUN'",
-                    functionNameToken.getIndex());
-        }
-        String functionName = functionNameToken.getLiteral(); // Get the literal string value
-        match("("); // Ensure the next token is '('
-        List<String> parameters = new ArrayList<>();
-        while (!peek(")")) {
-            Token parameterToken = tokens.get(0); // Get the next token
-            if (parameterToken.getType() != Token.Type.IDENTIFIER) { // Check if it's an identifier
-                throw new ParseException("Expected parameter identifier",
-                        parameterToken.getIndex());
+        if (match("FUN")) {
+            if (match(Token.Type.IDENTIFIER)) {
+                String identifier = previous().getLiteral();
+                if (match("(")) {
+                    List<String> parameters = new ArrayList<>();
+                    List<String> parameterTypeNames = new ArrayList<>();
+                    if (match(Token.Type.IDENTIFIER)) {
+                        parameters.add(previous().getLiteral());
+                        if (match(":")) {
+                            if (match(Token.Type.IDENTIFIER)) {
+                                parameterTypeNames.add(previous().getLiteral());
+                                while (match(",")) {
+                                    if (match(Token.Type.IDENTIFIER)) {
+                                        parameters.add(previous().getLiteral());
+                                        if (match(":")) {
+                                            if (match(Token.Type.IDENTIFIER)) {
+                                                parameterTypeNames.add(previous().getLiteral());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!match(")"))
+                        throw new ParseException("Expect ')' after parameters.", previous().getIndex());
+                    if (match(":")) {
+                        if (match(Token.Type.IDENTIFIER)) {
+                            String returnType = previous().getLiteral();
+                            if (match("DO")) {
+                                List<Ast.Statement> block = parseBlock();
+                                if (match("END"))
+                                    return new Ast.Function(identifier, parameters, parameterTypeNames, Optional.of(returnType), block);
+                            }
+                        }
+                    }
+//consume(RIGHT_PAREN, "Expect ')' after parameters.");
+                    if (match("DO")) {
+                        List<Ast.Statement> block = parseBlock();
+                        if (match("END"))
+                            return new Ast.Function(identifier, parameters, parameterTypeNames, Optional.empty(), block);
+                    }
+                }
             }
-            parameters.add(parameterToken.getLiteral()); // Get the literal string value
-            if (match(",")) continue;
-            else break;
         }
-        match(")"); // Ensure the next token is ')'
-        List<Ast.Statement> statements = parseBlock(); // Parse function body
-        return new Ast.Function(functionName, parameters, statements);
+        throw new ParseException("Parser Exception at " , tokens.index);
     }
     /**
      * Parses the {@code block} rule. This method should only be called if the
      * preceding token indicates the opening a block of statements.
      */
     public List<Ast.Statement> parseBlock() throws ParseException {
-//throw new UnsupportedOperationException(); //TODO
         List<Ast.Statement> statements = new ArrayList<>();
         while (!peek("END") && !peek( "CASE") && !peek("DEFAULT") && !peek("ELSE"))
         {
@@ -246,7 +246,6 @@ public final class Parser {
      */
     public Ast.Statement.Declaration parseDeclarationStatement() throws
             ParseException {
-//throw new UnsupportedOperationException(); //TODO
         match("LET"); // Ensure the next token is 'LET'
         Token identifierToken = tokens.get(0);
         if (!match( Token.Type.IDENTIFIER)) {
@@ -270,7 +269,7 @@ public final class Parser {
      * {@code IF}.
      */
     public Ast.Statement.If parseIfStatement() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
+
         match("IF"); // Ensure the next token is 'IF'
         Ast.Expression condition = parseExpression();
         match("DO"); // Ensure the next token is 'DO'
@@ -289,7 +288,7 @@ public final class Parser {
      * {@code SWITCH}.
      */
     public Ast.Statement.Switch parseSwitchStatement() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
+
         match("SWITCH"); // Ensure the next token is 'SWITCH'
         Ast.Expression condition = parseExpression();
         match("CASES"); // Ensure the next token is 'CASES'
@@ -306,7 +305,7 @@ public final class Parser {
      * default block of a switch statement, aka {@code CASE} or {@code DEFAULT}.
      */
     public Ast.Statement.Case parseCaseStatement() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
+
         match("CASE"); // Ensure the next token is 'CASE'
         Optional<Ast.Expression> condition = Optional.of(parseExpression());
         match(":"); // Ensure the next token is ':'
@@ -322,7 +321,7 @@ public final class Parser {
      * {@code WHILE}.
      */
     public Ast.Statement.While parseWhileStatement() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
+
         match("WHILE"); // Ensure the next token is 'WHILE'
         Ast.Expression condition = parseExpression();
         match("DO"); // Ensure the next token is 'DO'
@@ -339,7 +338,7 @@ public final class Parser {
      * {@code RETURN}.
      */
     public Ast.Statement.Return parseReturnStatement() throws ParseException {
-// throw new UnsupportedOperationException(); //TODO
+
         match("RETURN"); // Ensure the next token is 'RETURN'
         Ast.Expression value = null;
         if (!peek(";")) {
