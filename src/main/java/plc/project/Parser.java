@@ -244,24 +244,38 @@ public final class Parser {
      * method should only be called if the next tokens start a declaration
      * statement, aka {@code LET}.
      */
-    public Ast.Statement.Declaration parseDeclarationStatement() throws
-            ParseException {
+    public Ast.Statement.Declaration parseDeclarationStatement() throws ParseException {
         match("LET"); // Ensure the next token is 'LET'
         Token identifierToken = tokens.get(0);
-        if (!match( Token.Type.IDENTIFIER)) {
+        if (!match(Token.Type.IDENTIFIER)) {
             throw new ParseException("Expected identifier after 'LET'",
                     identifierToken.getIndex());
         }
         String identifier = identifierToken.getLiteral();
-        Optional<Ast.Expression> initialization = Optional.empty(); // Initializeas empty by default
-// call new match statement
-// Check if there's an initialization expression
+
+        Optional<String> typeName = Optional.empty(); // Initialize as empty by default
+
+        // Extract type information
+        if (match(":")) {
+            Token typeToken = tokens.get(0);
+            if (!match(Token.Type.IDENTIFIER)) {
+                throw new ParseException("Expected type identifier after ':'",
+                        typeToken.getIndex());
+            }
+            typeName = Optional.of(typeToken.getLiteral());
+        }
+
+        Optional<Ast.Expression> initialization = Optional.empty();
+
+        // Check if there's an initialization expression
         if (match("=")) {
             initialization = Optional.of(parseExpression());
         }
+
         match(";"); // Ensure the statement ends with a semicolon
-// Create and return the Declaration statement
-        return new Ast.Statement.Declaration(identifier, initialization);
+
+        // Create and return the Declaration statement
+        return new Ast.Statement.Declaration(identifier, typeName, initialization);
     }
     /**
      * Parses an if statement from the {@code statement} rule. This method
